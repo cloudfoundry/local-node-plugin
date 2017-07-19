@@ -1,4 +1,4 @@
-package models_test
+package node_test
 
 import (
 	. "github.com/onsi/ginkgo"
