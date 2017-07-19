@@ -72,7 +72,7 @@ var _ = Describe("Node Client", func() {
         expectedResponse, err = nc.NodePublishVolume(context, request)
       })
       It("should return a NodePublishVolumeResponse", func() {
-        Expect(*expectedResponse).NotTo(BeNil())
+        Expect(expectedResponse).NotTo(BeNil())
       })
     })
 
@@ -154,7 +154,7 @@ var _ = Describe("Node Client", func() {
         expectedResponse, err = nc.NodeUnpublishVolume(context, request)
       })
       It("should return a NodeUnpublishVolumeResponse", func() {
-        Expect(*expectedResponse).NotTo(BeNil())
+        Expect(expectedResponse).NotTo(BeNil())
       })
     })
   })
@@ -164,7 +164,7 @@ var _ = Describe("Node Client", func() {
       request *GetNodeIDRequest
       expectedResponse *GetNodeIDResponse
     )
-    Context("when GetNodeID is called with a GetNodeID", func() {
+    Context("when GetNodeID is called with a GetNodeIDRequest", func() {
       BeforeEach(func() {
         request = &GetNodeIDRequest{
           &Version{Major: 0, Minor: 0, Patch: 1},
@@ -173,8 +173,11 @@ var _ = Describe("Node Client", func() {
       JustBeforeEach(func() {
         expectedResponse, err = nc.GetNodeID(context, request)
       })
-      It("should return a GetNodeIDResponse", func() {
-        Expect(*expectedResponse).NotTo(BeNil())
+      It("should return a GetNodeIDResponse that has a result with no node ID", func() {
+        Expect(expectedResponse).NotTo(BeNil())
+        Expect(expectedResponse.GetResult()).NotTo(BeNil())
+        Expect(expectedResponse.GetResult().GetNodeId()).To(BeNil())
+        Expect(err).To(BeNil())
       })
     })
   })
@@ -184,7 +187,7 @@ var _ = Describe("Node Client", func() {
       request *ProbeNodeRequest
       expectedResponse *ProbeNodeResponse
     )
-    Context("when ProbeNode is called with a ProbeNode", func() {
+    Context("when ProbeNode is called with a ProbeNodeRequest", func() {
       BeforeEach(func() {
         request = &ProbeNodeRequest{
           &Version{Major: 0, Minor: 0, Patch: 1},
@@ -194,7 +197,7 @@ var _ = Describe("Node Client", func() {
         expectedResponse, err = nc.ProbeNode(context, request)
       })
       It("should return a ProbeNodeResponse", func() {
-        Expect(*expectedResponse).NotTo(BeNil())
+        Expect(expectedResponse).NotTo(BeNil())
       })
     })
   })
@@ -219,6 +222,7 @@ var _ = Describe("Node Client", func() {
         capabilities := expectedResponse.GetResult().GetCapabilities()
         Expect(capabilities).To(HaveLen(1))
         Expect(capabilities[0].GetRpc().GetType()).To(Equal(NodeServiceCapability_RPC_UNKNOWN))
+        Expect(err).To(BeNil())
       })
     })
   })

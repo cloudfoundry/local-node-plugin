@@ -106,7 +106,9 @@ func (d *LocalNode) NodeUnpublishVolume(ctx context.Context, unmountRequest *Nod
 }
 
 func (d *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNodeIDResponse, error) {
-  return &GetNodeIDResponse{}, nil
+  return &GetNodeIDResponse{
+    Reply: &GetNodeIDResponse_Result_{
+      Result: &GetNodeIDResponse_Result{}}}, nil
 }
 
 func (d *LocalNode) ProbeNode(ctx context.Context, in *ProbeNodeRequest) (*ProbeNodeResponse, error) {
