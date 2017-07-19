@@ -198,6 +198,8 @@ var _ = Describe("Node Client", func() {
       })
       It("should return a ProbeNodeResponse", func() {
         Expect(expectedResponse).NotTo(BeNil())
+        Expect(expectedResponse.GetResult()).NotTo(BeNil())
+        Expect(err).To(BeNil())
       })
     })
   })

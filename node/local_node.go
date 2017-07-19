@@ -112,7 +112,9 @@ func (d *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNo
 }
 
 func (d *LocalNode) ProbeNode(ctx context.Context, in *ProbeNodeRequest) (*ProbeNodeResponse, error) {
-  return &ProbeNodeResponse{}, nil
+  return &ProbeNodeResponse{
+    Reply: &ProbeNodeResponse_Result_{
+      Result: &ProbeNodeResponse_Result{}}}, nil
 }
 
 func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
