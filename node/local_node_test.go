@@ -6,7 +6,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
@@ -31,17 +30,13 @@ var _ = Describe("Node Client", func() {
 
 	BeforeEach(func() {
 		testLogger = lagertest.NewTestLogger("localdriver-local")
-		clientConnection, grpcErr := grpc.Dial("localhost:50051", grpc.WithInsecure())
-
 		context = &DummyContext{}
-		cc := *clientConnection
-		Expect(grpcErr).To(BeNil())
 
 		fakeOs = &os_fake.FakeOs{}
 		fakeFilepath = &filepath_fake.FakeFilepath{}
 		fakeFilepath.AbsReturns("/path/to/mount", nil)
 
-		nc = node.NewLocalNode(cc, fakeOs, fakeFilepath, testLogger)
+		nc = node.NewLocalNode(fakeOs, fakeFilepath, testLogger)
 		volumeName = "test-volume-id"
 		volID = &VolumeID{Values: map[string]string{"volume_name": volumeName}}
 		vc = &VolumeCapability{Value: &VolumeCapability_Mount{}}

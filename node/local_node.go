@@ -12,7 +12,6 @@ import (
 	"code.cloudfoundry.org/lager"
 	. "github.com/jeffpak/csi"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 const VolumesRootDir = "_volumes"
@@ -22,18 +21,16 @@ type LocalVolume struct {
 }
 
 type LocalNode struct {
-	clientConnection grpc.ClientConn
-	filepath         filepathshim.Filepath
-	os               osshim.Os
-	logger           lager.Logger
+	filepath filepathshim.Filepath
+	os       osshim.Os
+	logger   lager.Logger
 }
 
-func NewLocalNode(conn grpc.ClientConn, os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger) *LocalNode {
+func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger) *LocalNode {
 	return &LocalNode{
-		clientConnection: conn,
-		os:               os,
-		filepath:         filepath,
-		logger:           logger,
+		os:       os,
+		filepath: filepath,
+		logger:   logger,
 	}
 }
 func createPublishVolumeErrorResponse(errorCode Error_NodePublishVolumeError_NodePublishVolumeErrorCode, errorDescription string) *NodePublishVolumeResponse {
