@@ -1,4 +1,4 @@
-package node_test
+package local_node_plugin_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestNodeservice(t *testing.T) {
+func TestLocalNodePlugin(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Nodeservice Suite")
+	RunSpecs(t, "LocalNodePlugin Suite")
 }
