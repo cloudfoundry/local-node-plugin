@@ -141,10 +141,7 @@ func (d *LocalNode) ProbeNode(ctx context.Context, in *ProbeNodeRequest) (*Probe
 func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
 	return &NodeGetCapabilitiesResponse{Reply: &NodeGetCapabilitiesResponse_Result_{
 		Result: &NodeGetCapabilitiesResponse_Result{
-			Capabilities: []*NodeServiceCapability{{
-				Type: &NodeServiceCapability_Rpc{
-					Rpc: &NodeServiceCapability_RPC{
-						Type: NodeServiceCapability_RPC_UNKNOWN}}}}}}}, nil
+			Capabilities: []*NodeServiceCapability{}}}}, nil
 }
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string, mountPath string) string {

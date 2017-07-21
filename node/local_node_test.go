@@ -274,8 +274,7 @@ var _ = Describe("Node Client", func() {
 			It("should return a ControllerGetCapabilitiesResponse with UNKNOWN specified", func() {
 				Expect(expectedResponse).NotTo(BeNil())
 				capabilities := expectedResponse.GetResult().GetCapabilities()
-				Expect(capabilities).To(HaveLen(1))
-				Expect(capabilities[0].GetRpc().GetType()).To(Equal(NodeServiceCapability_RPC_UNKNOWN))
+				Expect(capabilities).To(HaveLen(0))
 				Expect(err).To(BeNil())
 			})
 		})
