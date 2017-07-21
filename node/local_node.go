@@ -52,51 +52,78 @@ func createPublishVolumeResultResponse() *NodePublishVolumeResponse {
 	}
 }
 
-func (ns *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolumeRequest) (*NodePublishVolumeResponse, error) {
-	logger := lager.NewLogger("node-publish-volume")
+func createUnpublishVolumeErrorResponse(errorCode Error_NodeUnpublishVolumeError_NodeUnpublishVolumeErrorCode, errorDescription string) *NodeUnpublishVolumeResponse {
+	return &NodeUnpublishVolumeResponse{
+		Reply: &NodeUnpublishVolumeResponse_Error{
+			Error: &Error{
+				Value: &Error_NodeUnpublishVolumeError_{
+					NodeUnpublishVolumeError: &Error_NodeUnpublishVolumeError{
+						ErrorCode:        errorCode,
+						ErrorDescription: errorDescription,
+					}}}}}
+}
+
+func createUnpublishVolumeResultResponse() *NodeUnpublishVolumeResponse {
+	return &NodeUnpublishVolumeResponse{
+		Reply: &NodeUnpublishVolumeResponse_Result_{
+			Result: &NodeUnpublishVolumeResponse_Result{},
+		},
+	}
+}
+func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolumeRequest) (*NodePublishVolumeResponse, error) {
 	var volName string = in.GetVolumeId().GetValues()["volume_name"]
 
 	if volName == "" {
 		errorDescription := "Volume name is missing in request"
 		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), errors.New(errorDescription)
 	}
-	volumePath := ns.volumePath(logger, volName, in.GetTargetPath())
+	volumePath := ln.volumePath(ln.logger, volName, in.GetTargetPath())
 	mountPath := in.GetTargetPath()
-	logger.Info("mounting-volume", lager.Data{"id": volName, "mountpoint": mountPath})
+	ln.logger.Info("mounting-volume", lager.Data{"id": volName, "mountpoint": mountPath})
 
-	err := ns.mount(logger, volumePath, mountPath)
+	err := ln.mount(ln.logger, volumePath, mountPath)
 	if err != nil {
-		logger.Error("mount-volume-failed", err)
+		ln.logger.Error("mount-volume-failed", err)
 		errorDescription := fmt.Sprintf("Error mounting volume %s", err.Error())
 		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), errors.New(errorDescription)
 	}
-	logger.Info("volume-mounted", lager.Data{"name": volName})
+	ln.logger.Info("volume-mounted", lager.Data{"name": volName})
 
 	return createPublishVolumeResultResponse(), nil
 }
 
-func (d *LocalNode) NodeUnpublishVolume(ctx context.Context, unmountRequest *NodeUnpublishVolumeRequest) (*NodeUnpublishVolumeResponse, error) {
-	//  logger := env.Logger().Session("unmount", lager.Data{"volume": unmountRequest.Name})
-	//
-	//  if unmountRequest.Name == "" {
-	//    return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
-	//  }
-	//
-	//  mountPath, err := d.get(logger, unmountRequest.Name)
-	//  if err != nil {
-	//    logger.Error("failed-no-such-volume-found", err, lager.Data{"mountpoint": mountPath})
-	//
-	//    return voldriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' not found", unmountRequest.Name)}
-	//  }
-	//
-	//  if mountPath == "" {
-	//    errText := "Volume not previously mounted"
-	//    logger.Error("failed-mountpoint-not-assigned", errors.New(errText))
-	//    return voldriver.ErrorResponse{Err: errText}
-	//  }
-	//
-	//  return d.unmount(logger, unmountRequest.Name, mountPath)
-	return &NodeUnpublishVolumeResponse{}, nil
+func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishVolumeRequest) (*NodeUnpublishVolumeResponse, error) {
+	name := in.GetVolumeId().GetValues()["volume_name"]
+	if name == "" {
+		errorMsg := "Volume name is missing in request"
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorMsg), errors.New(errorMsg)
+	}
+
+	ln.logger.Info("unmount", lager.Data{"volume": name})
+
+	mountPoint := in.GetTargetPath()
+	fi, err := ln.os.Lstat(mountPoint)
+
+	if ln.os.IsNotExist(err) {
+		errorMsg := fmt.Sprintf("Mount point '%s' not found", mountPoint)
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorMsg), errors.New(errorMsg)
+	} else if fi.Mode()&os.ModeSymlink == 0 {
+		errorMsg := fmt.Sprintf("Mount point '%s' is not a symbolic link", mountPoint)
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorMsg), errors.New(errorMsg)
+	}
+
+	mountPath := in.GetTargetPath()
+	if mountPath == "" {
+		errorMsg := "Mount path is missing in the request"
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorMsg), errors.New(errorMsg)
+	}
+
+	err = ln.unmount(ln.logger, mountPath)
+	if err != nil {
+		errorDescription := fmt.Sprintf("Error unmounting volume %s", err.Error())
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_UNMOUNT_ERROR, errorDescription), errors.New(errorDescription)
+	}
+	return createUnpublishVolumeResultResponse(), nil
 }
 
 func (d *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNodeIDResponse, error) {
@@ -138,4 +165,11 @@ func (ns *LocalNode) mount(logger lager.Logger, volumePath, mountPath string) er
 	orig := syscall.Umask(000)
 	defer syscall.Umask(orig)
 	return ns.os.Symlink(volumePath, mountPath)
+}
+
+func (ns *LocalNode) unmount(logger lager.Logger, mountPath string) error {
+	logger.Info("unlink", lager.Data{"tgt": mountPath})
+	orig := syscall.Umask(000)
+	defer syscall.Umask(orig)
+	return ns.os.Remove(mountPath)
 }

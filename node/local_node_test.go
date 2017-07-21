@@ -26,6 +26,7 @@ var _ = Describe("Node Client", func() {
 		volID        *VolumeID
 		volumeName   string
 		err          error
+		fileInfo     *FakeFileInfo
 	)
 
 	BeforeEach(func() {
@@ -40,6 +41,10 @@ var _ = Describe("Node Client", func() {
 		volumeName = "test-volume-id"
 		volID = &VolumeID{Values: map[string]string{"volume_name": volumeName}}
 		vc = &VolumeCapability{Value: &VolumeCapability_Mount{}}
+
+		fileInfo = newFakeFileInfo()
+		fakeOs.LstatReturns(fileInfo, nil)
+		fileInfo.StubMode(os.ModeSymlink)
 	})
 
 	Describe("NodePublishVolume", func() {
@@ -54,7 +59,10 @@ var _ = Describe("Node Client", func() {
 
 			Context("when the volume exists", func() {
 				AfterEach(func() {
-					unmountSuccessful(context, nc, volID)
+					fileInfo := newFakeFileInfo()
+					fakeOs.LstatReturns(fileInfo, nil)
+					fileInfo.StubMode(os.ModeSymlink)
+					unmountSuccessful(context, nc, volID, mount_path)
 				})
 
 				It("should mount the volume on the local filesystem", func() {
@@ -105,12 +113,100 @@ var _ = Describe("Node Client", func() {
 					&VolumeMetadata{},
 					"unpublish-path",
 				}
+
 			})
 			JustBeforeEach(func() {
 				expectedResponse, err = nc.NodeUnpublishVolume(context, request)
 			})
 			It("should return a NodeUnpublishVolumeResponse", func() {
 				Expect(expectedResponse).NotTo(BeNil())
+			})
+		})
+
+		Context("when a volume has been mounted", func() {
+			var (
+				mount_path = "/path/to/mount/_mounts/test-volume-id"
+			)
+
+			JustBeforeEach(func() {
+				mountSuccessful(context, nc, volID, vc, mount_path)
+			})
+
+			It("Unmount the volume", func() {
+				unmountSuccessful(context, nc, volID, mount_path)
+				des := fakeOs.RemoveArgsForCall(0)
+				Expect(des).To(Equal(mount_path))
+			})
+
+			Context("when the mountpath is not found on the filesystem", func() {
+				It("returns an error", func() {
+					fileInfo = newFakeFileInfo()
+					err = os.ErrNotExist
+
+					fakeOs.LstatReturns(fileInfo, err)
+					fakeOs.IsNotExistReturns(true)
+					path := "/not-found"
+					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
+						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
+						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						TargetPath: path,
+					})
+					errorMsg := "Mount point '/not-found' not found"
+					Expect(err.Error()).To(Equal(errorMsg))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+				})
+			})
+
+			Context("when the mountpath is not a symbolic link", func() {
+				It("returns an error", func() {
+					fileInfo := newFakeFileInfo()
+					err = os.ErrNotExist
+					fakeOs.LstatReturns(fileInfo, err)
+					fileInfo.StubMode(os.ModeTemporary)
+
+					path := "/not-symbolic-link"
+					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
+						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
+						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						TargetPath: path,
+					})
+
+					errorMsg := "Mount point '/not-symbolic-link' is not a symbolic link"
+					Expect(err.Error()).To(Equal(errorMsg))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+				})
+			})
+
+			Context("when the volume ID is missing", func() {
+				It("returns an error", func() {
+					var path string = "/test-path"
+					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
+						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
+						VolumeId:   &VolumeID{Values: map[string]string{}},
+						TargetPath: path,
+					})
+					errorMsg := "Volume name is missing in request"
+					Expect(err.Error()).To(Equal(errorMsg))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+				})
+			})
+
+			Context("when the mount path is missing", func() {
+				It("returns an error", func() {
+					var path string = ""
+					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
+						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
+						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						TargetPath: path,
+					})
+					errorMsg := "Mount path is missing in the request"
+					Expect(err.Error()).To(Equal(errorMsg))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+				})
 			})
 		})
 	})
@@ -200,15 +296,15 @@ func mountSuccessful(ctx context.Context, ns NodeServer, volID *VolumeID, volCap
 	Expect(mountResponse.GetResult()).NotTo(BeNil())
 }
 
-func unmountSuccessful(ctx context.Context, ns NodeServer, volID *VolumeID) {
-	var path string = "/path/to/mount"
+func unmountSuccessful(ctx context.Context, ns NodeServer, volID *VolumeID, path string) {
 	unmountResponse, err := ns.NodeUnpublishVolume(ctx, &NodeUnpublishVolumeRequest{
 		Version:    &Version{Major: 0, Minor: 0, Patch: 1},
 		VolumeId:   volID,
 		TargetPath: path,
 	})
-	Expect(unmountResponse.GetError()).To(BeNil())
 	Expect(err).To(BeNil())
+	Expect(unmountResponse.GetError()).To(BeNil())
+	Expect(unmountResponse.GetResult()).NotTo(BeNil())
 }
 
 type DummyContext struct{}
@@ -220,3 +316,19 @@ func (*DummyContext) Done() <-chan struct{} { return nil }
 func (*DummyContext) Err() error { return nil }
 
 func (*DummyContext) Value(key interface{}) interface{} { return nil }
+
+type FakeFileInfo struct {
+	FileMode os.FileMode
+}
+
+func (FakeFileInfo) Name() string                { return "" }
+func (FakeFileInfo) Size() int64                 { return 0 }
+func (fs *FakeFileInfo) Mode() os.FileMode       { return fs.FileMode }
+func (fs *FakeFileInfo) StubMode(fm os.FileMode) { fs.FileMode = fm }
+func (FakeFileInfo) ModTime() time.Time          { return time.Time{} }
+func (FakeFileInfo) IsDir() bool                 { return false }
+func (FakeFileInfo) Sys() interface{}            { return nil }
+
+func newFakeFileInfo() *FakeFileInfo {
+	return &FakeFileInfo{}
+}
