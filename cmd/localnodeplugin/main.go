@@ -8,7 +8,7 @@ import (
 	"code.cloudfoundry.org/goshims/osshim"
 
 	"code.cloudfoundry.org/lager"
-	csi "github.com/jeffpak/csi"
+	csi "github.com/container-storage-interface/spec"
 	"github.com/jeffpak/local-node-plugin/node"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"

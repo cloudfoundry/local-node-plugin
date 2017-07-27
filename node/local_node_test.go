@@ -12,7 +12,7 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
-	. "github.com/jeffpak/csi"
+	. "github.com/container-storage-interface/spec"
 	"github.com/jeffpak/local-node-plugin/node"
 )
 
