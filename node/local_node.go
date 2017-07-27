@@ -14,7 +14,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-const VolumesRootDir = "_volumes"
+const VolumesRootDir = "/tmp/_volumes"
 
 type LocalVolume struct {
 	VolumeInfo
@@ -71,6 +71,10 @@ func createUnpublishVolumeResultResponse() *NodeUnpublishVolumeResponse {
 	}
 }
 func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolumeRequest) (*NodePublishVolumeResponse, error) {
+	logger := ln.logger.Session("node-publish-volume")
+	logger.Info("start")
+	defer logger.Info("end")
+
 	var volName string = in.GetVolumeId().GetValues()["volume_name"]
 
 	if volName == "" {
@@ -78,6 +82,7 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), errors.New(errorDescription)
 	}
 	volumePath := ln.volumePath(ln.logger, volName, in.GetTargetPath())
+	logger.Info("volume-path", lager.Data{"value": volumePath})
 	mountPath := in.GetTargetPath()
 	ln.logger.Info("mounting-volume", lager.Data{"id": volName, "mountpoint": mountPath})
 
@@ -145,11 +150,7 @@ func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabili
 }
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string, mountPath string) string {
-	dir, err := ns.filepath.Abs(mountPath)
-	if err != nil {
-		logger.Fatal("abs-failed", err)
-	}
-	volumesPathRoot := filepath.Join(dir, VolumesRootDir)
+	volumesPathRoot := VolumesRootDir
 	orig := syscall.Umask(000)
 	defer syscall.Umask(orig)
 	ns.os.MkdirAll(volumesPathRoot, os.ModePerm)

@@ -2,27 +2,32 @@ package main
 
 import (
 	"net"
+	"os"
 
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 
+	"code.cloudfoundry.org/lager"
 	csi "github.com/jeffpak/csi"
 	"github.com/jeffpak/local-node-plugin/node"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"code.cloudfoundry.org/lager"
 )
 
 const (
-	port = ":50051"
+	port = ":50052"
 )
 
 func main() {
-	lis, err := net.Listen("tcp", port)
 	logger := lager.NewLogger("local-node-plugin")
+	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.DEBUG)
+	logger.RegisterSink(sink)
+
+	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		logger.Fatal("failed to listen:", err)
 	}
+
 	s := grpc.NewServer()
 
 	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger)

@@ -7,12 +7,13 @@ import (
 	. "github.com/onsi/gomega"
 	"golang.org/x/net/context"
 
+	"os"
+	"time"
+
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
 	. "github.com/jeffpak/csi"
 	"github.com/jeffpak/local-node-plugin/node"
-	"os"
-	"time"
 )
 
 var _ = Describe("Node Client", func() {
@@ -53,6 +54,10 @@ var _ = Describe("Node Client", func() {
 				mount_path = "/path/to/mount/_mounts/test-volume-id"
 			)
 
+			BeforeEach(func() {
+				fakeFilepath.AbsReturns(mount_path, nil)
+			})
+
 			JustBeforeEach(func() {
 				mountSuccessful(context, nc, volID, vc, mount_path)
 			})
@@ -66,11 +71,11 @@ var _ = Describe("Node Client", func() {
 				})
 
 				It("should mount the volume on the local filesystem", func() {
-					Expect(fakeFilepath.AbsCallCount()).To(Equal(1))
+					// Expect(fakeFilepath.AbsCallCount()).To(Equal(1))
 					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
-					Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
+					Expect(from).To(Equal("/tmp/_volumes/test-volume-id"))
 					Expect(to).To(Equal(mount_path))
 				})
 			})
