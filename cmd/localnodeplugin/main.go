@@ -1,21 +1,21 @@
 package main
 
 import (
-	"net"
+	"fmt"
 	"os"
 
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
-
 	"code.cloudfoundry.org/lager"
-	csi "github.com/container-storage-interface/spec"
+
+	. "github.com/container-storage-interface/spec"
 	"github.com/jeffpak/local-node-plugin/node"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"github.com/tedsuo/ifrit"
+	"github.com/tedsuo/ifrit/grpc_server"
 )
 
 const (
-	port = ":50052"
+	port = 50052
 )
 
 func main() {
@@ -23,19 +23,17 @@ func main() {
 	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.DEBUG)
 	logger.RegisterSink(sink)
 
-	lis, err := net.Listen("tcp", port)
-	if err != nil {
-		logger.Fatal("failed to listen:", err)
-	}
-
-	s := grpc.NewServer()
+	listenAddress := fmt.Sprintf("0.0.0.0:%d", port)
 
 	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger)
-	csi.RegisterNodeServer(s, node)
+	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterNodeServer)
 
-	// Register reflection service on gRPC server.
-	reflection.Register(s)
-	if err := s.Serve(lis); err != nil {
-		logger.Fatal("failed to serve:", err)
+	monitor := ifrit.Invoke(server)
+	logger.Info("Node started")
+
+	err := <-monitor.Wait()
+
+	if err != nil {
+		logger.Fatal("exited-with-failure:", err)
 	}
 }
