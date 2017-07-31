@@ -75,33 +75,67 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 	logger.Info("start")
 	defer logger.Info("end")
 
+	volID := in.GetVolumeId()
+	if volID == nil {
+		errorDescription := "Volume id is missing in request"
+		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+	}
+
 	var volName string = in.GetVolumeId().GetValues()["volume_name"]
 
 	if volName == "" {
 		errorDescription := "Volume name is missing in request"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), errors.New(errorDescription)
+		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
 	}
-	volumePath := ln.volumePath(ln.logger, volName, in.GetTargetPath())
+	volumePath := ln.volumePath(ln.logger, volName)
 	logger.Info("volume-path", lager.Data{"value": volumePath})
+
+	vc := in.GetVolumeCapability()
+	if vc == nil {
+		errorDescription := "Volume capability is missing in request"
+		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
+	}
+	if vc.GetMount() == nil {
+		errorDescription := "Volume mount capability is not specified"
+		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
+	}
+
 	mountPath := in.GetTargetPath()
 	ln.logger.Info("mounting-volume", lager.Data{"id": volName, "mountpoint": mountPath})
 
-	err := ln.mount(ln.logger, volumePath, mountPath)
+	exists, err := ln.exists(mountPath)
 	if err != nil {
-		ln.logger.Error("mount-volume-failed", err)
-		errorDescription := fmt.Sprintf("Error mounting volume %s", err.Error())
+		logger.Error("mount-volume-failed", err)
+		errorDescription := "Mount volume already exists"
 		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), errors.New(errorDescription)
 	}
-	ln.logger.Info("volume-mounted", lager.Data{"name": volName})
+	ln.logger.Info("volume-exists", lager.Data{"value": exists})
+
+	if !exists {
+		err := ln.mount(ln.logger, volumePath, mountPath)
+		if err != nil {
+			ln.logger.Error("mount-volume-failed", err)
+			errorDescription := fmt.Sprintf("Error mounting volume %s", err.Error())
+			return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
+		}
+		ln.logger.Info("volume-mounted", lager.Data{"name": volName, "volume path": volumePath, "mount path": mountPath})
+	}
 
 	return createPublishVolumeResultResponse(), nil
 }
 
 func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishVolumeRequest) (*NodeUnpublishVolumeResponse, error) {
+
+	volID := in.GetVolumeId()
+	if volID == nil {
+		errorDescription := "Volume id is missing in request"
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+	}
+
 	name := in.GetVolumeId().GetValues()["volume_name"]
 	if name == "" {
-		errorMsg := "Volume name is missing in request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorMsg), errors.New(errorMsg)
+		errorDescription := "Volume name is missing in request"
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
 	}
 
 	ln.logger.Info("unmount", lager.Data{"volume": name})
@@ -110,17 +144,17 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 	fi, err := ln.os.Lstat(mountPoint)
 
 	if ln.os.IsNotExist(err) {
-		errorMsg := fmt.Sprintf("Mount point '%s' not found", mountPoint)
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorMsg), errors.New(errorMsg)
+		errorDescription := fmt.Sprintf("Mount point '%s' not found", mountPoint)
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorDescription), errors.New(errorDescription)
 	} else if fi.Mode()&os.ModeSymlink == 0 {
-		errorMsg := fmt.Sprintf("Mount point '%s' is not a symbolic link", mountPoint)
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorMsg), errors.New(errorMsg)
+		errorDescription := fmt.Sprintf("Mount point '%s' is not a symbolic link", mountPoint)
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorDescription), errors.New(errorDescription)
 	}
 
 	mountPath := in.GetTargetPath()
 	if mountPath == "" {
-		errorMsg := "Mount path is missing in the request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorMsg), errors.New(errorMsg)
+		errorDescription := "Mount path is missing in the request"
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), errors.New(errorDescription)
 	}
 
 	err = ln.unmount(ln.logger, mountPath)
@@ -149,13 +183,15 @@ func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabili
 			Capabilities: []*NodeServiceCapability{}}}}, nil
 }
 
-func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string, mountPath string) string {
-	volumesPathRoot := VolumesRootDir
+func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {
+	volumesPathRoot := filepath.Join(VolumesRootDir, volumeId)
 	orig := syscall.Umask(000)
 	defer syscall.Umask(orig)
-	ns.os.MkdirAll(volumesPathRoot, os.ModePerm)
-
-	return filepath.Join(volumesPathRoot, volumeId)
+	err := ns.os.MkdirAll(volumesPathRoot, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	return volumesPathRoot
 }
 
 func (ns *LocalNode) mount(logger lager.Logger, volumePath, mountPath string) error {
@@ -170,4 +206,15 @@ func (ns *LocalNode) unmount(logger lager.Logger, mountPath string) error {
 	orig := syscall.Umask(000)
 	defer syscall.Umask(orig)
 	return ns.os.Remove(mountPath)
+}
+
+func (ns *LocalNode) exists(path string) (bool, error) {
+	_, err := ns.os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
 }
