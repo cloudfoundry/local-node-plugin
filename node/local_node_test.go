@@ -1,6 +1,7 @@
 package node_test
 
 import (
+	"errors"
 	"fmt"
 
 	"code.cloudfoundry.org/goshims/filepathshim/filepath_fake"
@@ -71,7 +72,10 @@ var _ = Describe("Node Client", func() {
 					fileInfo := newFakeFileInfo()
 					fakeOs.LstatReturns(fileInfo, nil)
 					fileInfo.StubMode(os.ModeSymlink)
-					unmountSuccessful(context, nc, volID, mount_path)
+					unmountResponse, err := nodeUnpublish(context, nc, volID, mount_path)
+					Expect(err).To(BeNil())
+					Expect(unmountResponse.GetError()).To(BeNil())
+					Expect(unmountResponse.GetResult()).NotTo(BeNil())
 				})
 
 				It("should mount the volume on the local filesystem", func() {
@@ -196,13 +200,16 @@ var _ = Describe("Node Client", func() {
 			})
 
 			It("Unmount the volume", func() {
-				unmountSuccessful(context, nc, volID, mount_path)
+				unmountResponse, err := nodeUnpublish(context, nc, volID, mount_path)
+				Expect(err).To(BeNil())
+				Expect(unmountResponse.GetError()).To(BeNil())
+				Expect(unmountResponse.GetResult()).NotTo(BeNil())
 				des := fakeOs.RemoveArgsForCall(0)
 				Expect(des).To(Equal(mount_path))
 			})
 
 			Context("when the mountpath is not found on the filesystem", func() {
-				It("returns an error", func() {
+				It("returns a success", func() {
 					fileInfo = newFakeFileInfo()
 					err = os.ErrNotExist
 
@@ -214,10 +221,8 @@ var _ = Describe("Node Client", func() {
 						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
 						TargetPath: path,
 					})
-					errorMsg := "Mount point '/not-found' not found"
-					Expect(err.Error()).To(Equal(errorMsg))
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST))
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp.GetError()).To(BeNil())
 				})
 			})
 
@@ -236,7 +241,7 @@ var _ = Describe("Node Client", func() {
 					})
 
 					errorMsg := "Mount point '/not-symbolic-link' is not a symbolic link"
-					Expect(err.Error()).To(Equal(errorMsg))
+					Expect(err).ToNot(HaveOccurred())
 					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST))
 					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
 				})
@@ -274,15 +279,32 @@ var _ = Describe("Node Client", func() {
 
 			Context("when the mount path is missing", func() {
 				It("returns an error", func() {
-					var path string = ""
+					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
+						Version:  &Version{Major: 0, Minor: 0, Patch: 1},
+						VolumeId: &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+					})
+					errorMsg := "Mount path is missing in the request"
+					Expect(err).NotTo(HaveOccurred())
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+				})
+			})
+
+			Context("when the removal fails while unmounting", func() {
+				var errorMsg string
+				BeforeEach(func() {
+					errorMsg = "Error ummounting volume abcd"
+					fakeOs.RemoveReturns(errors.New(errorMsg))
+				})
+				It("returns an error", func() {
+					var path string = "/test-path"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
 						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
 						TargetPath: path,
 					})
-					errorMsg := "Mount path is missing in the request"
-					Expect(err.Error()).To(Equal(errorMsg))
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_UNMOUNT_ERROR))
 					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
 				})
 			})
@@ -370,15 +392,13 @@ func nodePublish(ctx context.Context, ns NodeServer, volID *VolumeID, volCapabil
 	return mountResponse, err
 }
 
-func unmountSuccessful(ctx context.Context, ns NodeServer, volID *VolumeID, path string) {
+func nodeUnpublish(ctx context.Context, ns NodeServer, volID *VolumeID, path string) (*NodeUnpublishVolumeResponse, error) {
 	unmountResponse, err := ns.NodeUnpublishVolume(ctx, &NodeUnpublishVolumeRequest{
 		Version:    &Version{Major: 0, Minor: 0, Patch: 1},
 		VolumeId:   volID,
 		TargetPath: path,
 	})
-	Expect(err).To(BeNil())
-	Expect(unmountResponse.GetError()).To(BeNil())
-	Expect(unmountResponse.GetResult()).NotTo(BeNil())
+	return unmountResponse, err
 }
 
 type DummyContext struct{}

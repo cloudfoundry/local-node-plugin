@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -103,12 +102,7 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 	mountPath := in.GetTargetPath()
 	ln.logger.Info("mounting-volume", lager.Data{"id": volName, "mountpoint": mountPath})
 
-	exists, err := ln.exists(mountPath)
-	if err != nil {
-		logger.Error("mount-volume-failed", err)
-		errorDescription := "Mount volume already exists"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), errors.New(errorDescription)
-	}
+	exists, _ := ln.exists(mountPath)
 	ln.logger.Info("volume-exists", lager.Data{"value": exists})
 
 	if !exists {
@@ -125,7 +119,6 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 }
 
 func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishVolumeRequest) (*NodeUnpublishVolumeResponse, error) {
-
 	volID := in.GetVolumeId()
 	if volID == nil {
 		errorDescription := "Volume id is missing in request"
@@ -140,27 +133,25 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 
 	ln.logger.Info("unmount", lager.Data{"volume": name})
 
-	mountPoint := in.GetTargetPath()
-	fi, err := ln.os.Lstat(mountPoint)
-
-	if ln.os.IsNotExist(err) {
-		errorDescription := fmt.Sprintf("Mount point '%s' not found", mountPoint)
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorDescription), errors.New(errorDescription)
-	} else if fi.Mode()&os.ModeSymlink == 0 {
-		errorDescription := fmt.Sprintf("Mount point '%s' is not a symbolic link", mountPoint)
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorDescription), errors.New(errorDescription)
-	}
-
 	mountPath := in.GetTargetPath()
 	if mountPath == "" {
 		errorDescription := "Mount path is missing in the request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), errors.New(errorDescription)
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+	}
+
+	fi, err := ln.os.Lstat(mountPath)
+
+	if ln.os.IsNotExist(err) {
+		return createUnpublishVolumeResultResponse(), nil
+	} else if fi.Mode()&os.ModeSymlink == 0 {
+		errorDescription := fmt.Sprintf("Mount point '%s' is not a symbolic link", mountPath)
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorDescription), nil
 	}
 
 	err = ln.unmount(ln.logger, mountPath)
 	if err != nil {
-		errorDescription := fmt.Sprintf("Error unmounting volume %s", err.Error())
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_UNMOUNT_ERROR, errorDescription), errors.New(errorDescription)
+		errorDescription := err.Error()
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_UNMOUNT_ERROR, errorDescription), nil
 	}
 	return createUnpublishVolumeResultResponse(), nil
 }
