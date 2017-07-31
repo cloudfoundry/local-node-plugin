@@ -19,6 +19,8 @@ THIS REPOSITORY IS A WORK IN PROGRESS.
 ## Running Tests
 
 1. Install [go](https://golang.org/doc/install).
-1. Install [ginkgo](https://onsi.github.io/ginkgo/).
-1. Clone this repository
-1. ```ginkgo -r``` inside local-controller-plugin.
+1. ```export PATH=$GOPATH/bin:$PATH```
+1. ```go get github.com/jeffpak/local-node-plugin >/dev/null 2>&1 || true```
+1. ```pushd $GOPATH/github.com/jeffpak/local-node-plugin```
+1. ```scripts/go_get_all_dep.sh```
+1. ```ginkgo -r```
