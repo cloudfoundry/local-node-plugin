@@ -12,6 +12,7 @@ import (
 	"github.com/jeffpak/local-node-plugin/node"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
+	"github.com/tedsuo/ifrit/sigmon"
 )
 
 const (
@@ -28,7 +29,7 @@ func main() {
 	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger)
 	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterNodeServer)
 
-	monitor := ifrit.Invoke(server)
+	monitor := ifrit.Invoke(sigmon.New(server))
 	logger.Info("Node started")
 
 	err := <-monitor.Wait()
