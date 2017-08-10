@@ -9,7 +9,7 @@ import (
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
-	. "github.com/container-storage-interface/spec"
+	. "github.com/paulcwarren/spec"
 	"golang.org/x/net/context"
 )
 

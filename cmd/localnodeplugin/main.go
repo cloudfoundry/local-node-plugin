@@ -8,8 +8,8 @@ import (
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
 
-	. "github.com/container-storage-interface/spec"
 	"github.com/jeffpak/local-node-plugin/node"
+	. "github.com/paulcwarren/spec"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"

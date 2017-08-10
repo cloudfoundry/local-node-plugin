@@ -15,8 +15,8 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
-	. "github.com/container-storage-interface/spec"
 	"github.com/jeffpak/local-node-plugin/node"
+	. "github.com/paulcwarren/spec"
 )
 
 var _ = Describe("Node Client", func() {
