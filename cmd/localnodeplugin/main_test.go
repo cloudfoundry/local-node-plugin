@@ -29,13 +29,13 @@ var _ = Describe("Main", func() {
 		session.Kill().Wait()
 	})
 
-	Context("with a driver path", func() {
-		It("listens on tcp/7589 by default", func() {
-			EventuallyWithOffset(1, func() error {
-				_, err := net.Dial("tcp", "0.0.0.0:50052")
-				return err
-			}, 5).ShouldNot(HaveOccurred())
-		})
+  Context("with a driver path", func() {
+    It("listens on tcp/50052 by default", func() {
+      EventuallyWithOffset(1, func() error {
+        _, err := net.Dial("tcp", "0.0.0.0:50052")
+        return err
+      }, 5).ShouldNot(HaveOccurred())
+    })
 
 	})
 })
