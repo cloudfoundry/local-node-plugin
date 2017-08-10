@@ -22,10 +22,10 @@ const (
 	port = 50052
 )
 
-var driversPath = flag.String(
-	"driversPath",
+var pluginsPath = flag.String(
+	"pluginsPath",
 	"",
-	"Path to directory where drivers are installed",
+	"Path to directory where plugin specs are installed",
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 
 	listenAddress := fmt.Sprintf("0.0.0.0:%d", port)
 
-	csiplugin.WriteSpec(logger, *driversPath, csiplugin.CsiPluginSpec{Name: "com.github.jeffpak.local-node-plugin", Address: listenAddress})
+	csiplugin.WriteSpec(logger, *pluginsPath, csiplugin.CsiPluginSpec{Name: node.NODE_PLUGIN_ID, Address: listenAddress})
 
 	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger)
 	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterNodeServer)

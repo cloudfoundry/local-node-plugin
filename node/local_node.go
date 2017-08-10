@@ -13,7 +13,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-const VolumesRootDir = "/tmp/_volumes"
+const (
+	NODE_PLUGIN_ID = "com.github.jeffpak.local-node-plugin"
+	VolumesRootDir = "/tmp/_volumes"
+)
 
 type LocalVolume struct {
 	VolumeInfo
