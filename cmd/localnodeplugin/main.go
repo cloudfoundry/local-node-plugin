@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"code.cloudfoundry.org/goshims/filepathshim"
@@ -22,6 +21,12 @@ const (
 	port = 50052
 )
 
+var atAddress = flag.String(
+	"listenAddr",
+	"0.0.0.0:9760",
+	"host:port to serve on",
+)
+
 var pluginsPath = flag.String(
 	"pluginsPath",
 	"",
@@ -35,7 +40,7 @@ func main() {
 	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.DEBUG)
 	logger.RegisterSink(sink)
 
-	listenAddress := fmt.Sprintf("0.0.0.0:%d", port)
+	listenAddress := *atAddress
 
 	csiplugin.WriteSpec(logger, *pluginsPath, csiplugin.CsiPluginSpec{Name: node.NODE_PLUGIN_ID, Address: listenAddress})
 
@@ -43,7 +48,7 @@ func main() {
 	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterNodeServer)
 
 	monitor := ifrit.Invoke(sigmon.New(server))
-	logger.Info("Node started")
+	logger.Info("started")
 
 	err := <-monitor.Wait()
 
