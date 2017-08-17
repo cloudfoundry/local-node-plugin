@@ -15,8 +15,8 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
-	. "github.com/paulcwarren/spec"
 	"github.com/jeffpak/local-node-plugin/node"
+	. "github.com/paulcwarren/spec"
 )
 
 var _ = Describe("Node Client", func() {
@@ -32,9 +32,11 @@ var _ = Describe("Node Client", func() {
 		err          error
 		fileInfo     *FakeFileInfo
 		publishResp  *NodePublishVolumeResponse
+		volumesRoot  string
 	)
 
 	BeforeEach(func() {
+		volumesRoot = "/tmp/_volumes"
 		testLogger = lagertest.NewTestLogger("localdriver-local")
 		context = &DummyContext{}
 
@@ -42,7 +44,7 @@ var _ = Describe("Node Client", func() {
 		fakeFilepath = &filepath_fake.FakeFilepath{}
 		fakeFilepath.AbsReturns("/path/to/mount", nil)
 
-		nc = node.NewLocalNode(fakeOs, fakeFilepath, testLogger)
+		nc = node.NewLocalNode(fakeOs, fakeFilepath, testLogger, volumesRoot)
 		volumeName = "test-volume-id"
 		volID = &VolumeID{Values: map[string]string{"volume_name": volumeName}}
 		vc = &VolumeCapability{Value: &VolumeCapability_Mount{Mount: &VolumeCapability_MountVolume{}}}
@@ -86,10 +88,10 @@ var _ = Describe("Node Client", func() {
 
 					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
 					path, _ := fakeOs.MkdirAllArgsForCall(0)
-					Expect(path).To(Equal(fmt.Sprintf("%s/%s", node.VolumesRootDir, volumeName)))
+					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeName)))
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
-					Expect(from).To(Equal("/tmp/_volumes/test-volume-id"))
+					Expect(from).To(Equal(volumesRoot + "/test-volume-id"))
 					Expect(to).To(Equal(mount_path))
 				})
 			})

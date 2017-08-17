@@ -15,7 +15,6 @@ import (
 
 const (
 	NODE_PLUGIN_ID = "com.github.jeffpak.local-node-plugin"
-	VolumesRootDir = "/tmp/_volumes"
 )
 
 type LocalVolume struct {
@@ -23,16 +22,18 @@ type LocalVolume struct {
 }
 
 type LocalNode struct {
-	filepath filepathshim.Filepath
-	os       osshim.Os
-	logger   lager.Logger
+	filepath       filepathshim.Filepath
+	os             osshim.Os
+	logger         lager.Logger
+	volumesRootDir string
 }
 
-func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger) *LocalNode {
+func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) *LocalNode {
 	return &LocalNode{
-		os:       os,
-		filepath: filepath,
-		logger:   logger,
+		os:             os,
+		filepath:       filepath,
+		logger:         logger,
+		volumesRootDir: volumeRootDir,
 	}
 }
 func createPublishVolumeErrorResponse(errorCode Error_NodePublishVolumeError_NodePublishVolumeErrorCode, errorDescription string) *NodePublishVolumeResponse {
@@ -178,7 +179,7 @@ func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabili
 }
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {
-	volumesPathRoot := filepath.Join(VolumesRootDir, volumeId)
+	volumesPathRoot := filepath.Join(ns.volumesRootDir, volumeId)
 	orig := syscall.Umask(000)
 	defer syscall.Umask(orig)
 	err := ns.os.MkdirAll(volumesPathRoot, os.ModePerm)

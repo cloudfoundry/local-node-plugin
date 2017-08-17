@@ -3,22 +3,19 @@ package main
 import (
 	"os"
 
+	cf_lager "code.cloudfoundry.org/cflager"
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
-	cf_lager "code.cloudfoundry.org/cflager"
 
-	. "github.com/paulcwarren/spec"
-	"github.com/jeffpak/local-node-plugin/node"
+	"flag"
+
 	"github.com/Kaixiang/csiplugin"
+	"github.com/jeffpak/local-node-plugin/node"
+	. "github.com/paulcwarren/spec"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"
-	"flag"
-)
-
-const (
-	port = 50052
 )
 
 var atAddress = flag.String(
@@ -33,6 +30,12 @@ var pluginsPath = flag.String(
 	"Path to directory where plugin specs are installed",
 )
 
+var volumesRoot = flag.String(
+	"volumesRoot",
+	"/tmp/_volumes",
+	"Path to directory where plugin mount point start with",
+)
+
 func main() {
 	parseCommandLine()
 
@@ -42,15 +45,18 @@ func main() {
 
 	listenAddress := *atAddress
 
-	csiplugin.WriteSpec(logger, *pluginsPath, csiplugin.CsiPluginSpec{Name: node.NODE_PLUGIN_ID, Address: listenAddress})
+	err := csiplugin.WriteSpec(logger, *pluginsPath, csiplugin.CsiPluginSpec{Name: node.NODE_PLUGIN_ID, Address: listenAddress})
+	if err != nil {
+		logger.Fatal("exited-with-failure:", err)
+	}
 
-	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger)
+	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger, *volumesRoot)
 	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterNodeServer)
 
 	monitor := ifrit.Invoke(sigmon.New(server))
 	logger.Info("started")
 
-	err := <-monitor.Wait()
+	err = <-monitor.Wait()
 
 	if err != nil {
 		logger.Fatal("exited-with-failure:", err)
