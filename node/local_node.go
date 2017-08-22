@@ -190,6 +190,14 @@ func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {
 }
 
 func (ns *LocalNode) mount(logger lager.Logger, volumePath, mountPath string) error {
+	mountRoot := filepath.Dir(mountPath)
+	err := createVolumesRootifNotExist(logger, mountRoot, ns.os)
+
+	if err != nil {
+		logger.Error("create-volumes-root", err)
+		return err
+	}
+
 	logger.Info("link", lager.Data{"src": volumePath, "tgt": mountPath})
 	orig := syscall.Umask(000)
 	defer syscall.Umask(orig)
@@ -212,4 +220,28 @@ func (ns *LocalNode) exists(path string) (bool, error) {
 		return false, nil
 	}
 	return true, err
+}
+
+func createVolumesRootifNotExist(logger lager.Logger, mountPath string, osShim osshim.Os) error {
+	mountPath, err := filepath.Abs(mountPath)
+	if err != nil {
+		logger.Fatal("abs-failed", err)
+	}
+
+	logger.Debug(mountPath)
+	_, err = osShim.Stat(mountPath)
+
+	if err != nil {
+		if osShim.IsNotExist(err) {
+			// Create the directory if not exist
+			orig := syscall.Umask(000)
+			defer syscall.Umask(orig)
+			err = osShim.MkdirAll(mountPath, os.ModePerm)
+			if err != nil {
+				logger.Error("mkdirall", err)
+				return err
+			}
+		}
+	}
+	return nil
 }
