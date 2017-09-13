@@ -12,7 +12,7 @@ import (
 
 	"github.com/Kaixiang/csiplugin"
 	"github.com/jeffpak/local-node-plugin/node"
-	. "github.com/paulcwarren/spec"
+	. "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"

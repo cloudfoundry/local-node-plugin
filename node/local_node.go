@@ -9,7 +9,7 @@ import (
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
-	. "github.com/paulcwarren/spec"
+	. "github.com/container-storage-interface/spec/lib/go/csi"
 	"golang.org/x/net/context"
 )
 
@@ -78,19 +78,19 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 	logger.Info("start")
 	defer logger.Info("end")
 
-	volID := in.GetVolumeId()
-	if volID == nil {
-		errorDescription := "Volume id is missing in request"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+	volHandle := in.GetVolumeHandle()
+	if volHandle == nil {
+		errorDescription := "Volume handle is missing in request"
+		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
 	}
 
-	var volName string = in.GetVolumeId().GetValues()["volume_name"]
+	var volId string = in.GetVolumeHandle().GetId()
 
-	if volName == "" {
-		errorDescription := "Volume name is missing in request"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+	if volId == "" {
+		errorDescription := "Volume ID is missing in request"
+		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
 	}
-	volumePath := ln.volumePath(ln.logger, volName)
+	volumePath := ln.volumePath(ln.logger, volId)
 	logger.Info("volume-path", lager.Data{"value": volumePath})
 
 	vc := in.GetVolumeCapability()
@@ -104,7 +104,7 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 	}
 
 	mountPath := in.GetTargetPath()
-	ln.logger.Info("mounting-volume", lager.Data{"id": volName, "mountpoint": mountPath})
+	ln.logger.Info("mounting-volume", lager.Data{"volume id": volId, "mount point": mountPath})
 
 	exists, _ := ln.exists(mountPath)
 	ln.logger.Info("volume-exists", lager.Data{"value": exists})
@@ -116,31 +116,31 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 			errorDescription := fmt.Sprintf("Error mounting volume %s", err.Error())
 			return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
 		}
-		ln.logger.Info("volume-mounted", lager.Data{"name": volName, "volume path": volumePath, "mount path": mountPath})
+		ln.logger.Info("volume-mounted", lager.Data{"volume id": volId, "volume path": volumePath, "mount path": mountPath})
 	}
 
 	return createPublishVolumeResultResponse(), nil
 }
 
 func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishVolumeRequest) (*NodeUnpublishVolumeResponse, error) {
-	volID := in.GetVolumeId()
-	if volID == nil {
+	volHandle := in.GetVolumeHandle()
+	if volHandle == nil {
+		errorDescription := "Volume handle is missing in request"
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
+	}
+
+	volId := in.GetVolumeHandle().GetId()
+	if volId == "" {
 		errorDescription := "Volume id is missing in request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
 	}
 
-	name := in.GetVolumeId().GetValues()["volume_name"]
-	if name == "" {
-		errorDescription := "Volume name is missing in request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
-	}
-
-	ln.logger.Info("unmount", lager.Data{"volume": name})
+	ln.logger.Info("unmount", lager.Data{"volume id": volId})
 
 	mountPath := in.GetTargetPath()
 	if mountPath == "" {
 		errorDescription := "Mount path is missing in the request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID, errorDescription), nil
+		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
 	}
 
 	fi, err := ln.os.Lstat(mountPath)

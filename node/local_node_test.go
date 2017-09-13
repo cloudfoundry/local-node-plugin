@@ -17,7 +17,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/jeffpak/local-node-plugin/node"
-	. "github.com/paulcwarren/spec"
+	. "github.com/container-storage-interface/spec/lib/go/csi"
 )
 
 var _ = Describe("Node Client", func() {
@@ -28,8 +28,8 @@ var _ = Describe("Node Client", func() {
 		fakeOs       *os_fake.FakeOs
 		fakeFilepath *filepath_fake.FakeFilepath
 		vc           *VolumeCapability
-		volID        *VolumeID
-		volumeName   string
+		volHandle    *VolumeHandle
+		volumeId     string
 		err          error
 		fileInfo     *FakeFileInfo
 		publishResp  *NodePublishVolumeResponse
@@ -46,9 +46,9 @@ var _ = Describe("Node Client", func() {
 		fakeFilepath.AbsReturns("/path/to/mount", nil)
 
 		nc = node.NewLocalNode(fakeOs, fakeFilepath, testLogger, volumesRoot)
-		volumeName = "test-volume-id"
-		volID = &VolumeID{Values: map[string]string{"volume_name": volumeName}}
-		vc = &VolumeCapability{Value: &VolumeCapability_Mount{Mount: &VolumeCapability_MountVolume{}}}
+		volumeId = "test-volume-id"
+		volHandle = &VolumeHandle{Id: volumeId}
+		vc = &VolumeCapability{AccessType: &VolumeCapability_Mount{Mount: &VolumeCapability_MountVolume{}}, AccessMode: &VolumeCapability_AccessMode{}}
 
 		fileInfo = newFakeFileInfo()
 		fakeOs.LstatReturns(fileInfo, nil)
@@ -67,7 +67,7 @@ var _ = Describe("Node Client", func() {
 			})
 
 			JustBeforeEach(func() {
-				publishResp, err = nodePublish(context, nc, volID, vc, mount_path)
+				publishResp, err = nodePublish(context, nc, volHandle, vc, mount_path)
 			})
 
 			Context("when the volume exists", func() {
@@ -76,7 +76,7 @@ var _ = Describe("Node Client", func() {
 					fileInfo := newFakeFileInfo()
 					fakeOs.LstatReturns(fileInfo, nil)
 					fileInfo.StubMode(os.ModeSymlink)
-					unmountResponse, err := nodeUnpublish(context, nc, volID, mount_path)
+					unmountResponse, err := nodeUnpublish(context, nc, volHandle, mount_path)
 					Expect(err).To(BeNil())
 					Expect(unmountResponse.GetError()).To(BeNil())
 					Expect(unmountResponse.GetResult()).NotTo(BeNil())
@@ -90,7 +90,7 @@ var _ = Describe("Node Client", func() {
 
 					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
 					path, _ := fakeOs.MkdirAllArgsForCall(0)
-					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeName)))
+					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeId)))
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
 					Expect(from).To(Equal(volumesRoot + "/test-volume-id"))
@@ -113,7 +113,7 @@ var _ = Describe("Node Client", func() {
 
 					Expect(fakeOs.MkdirAllCallCount()).To(Equal(2))
 					path, _ := fakeOs.MkdirAllArgsForCall(0)
-					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeName)))
+					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeId)))
 
 					path, _ = fakeOs.MkdirAllArgsForCall(1)
 					Expect(path).To(Equal(mount_path_parent))
@@ -128,7 +128,7 @@ var _ = Describe("Node Client", func() {
 			Context("when the volume is node published a second time", func() {
 				JustBeforeEach(func() {
 					fakeOs.StatReturns(nil, nil)
-					publishResp, err = nodePublish(context, nc, volID, vc, mount_path)
+					publishResp, err = nodePublish(context, nc, volHandle, vc, mount_path)
 				})
 				It("should succeed", func() {
 					Expect(err).To(BeNil())
@@ -138,10 +138,10 @@ var _ = Describe("Node Client", func() {
 				})
 			})
 
-			Context("when the volume ID is missing", func() {
+			Context("when the volume handle is missing", func() {
 				BeforeEach(func() {
 					fakeOs.StatReturns(nil, os.ErrNotExist)
-					volID = nil
+					volHandle = nil
 				})
 				AfterEach(func() {
 					fakeOs.StatReturns(nil, nil)
@@ -149,15 +149,15 @@ var _ = Describe("Node Client", func() {
 
 				It("returns an error", func() {
 					Expect(err).NotTo(HaveOccurred())
-					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorCode()).To(Equal(Error_NodePublishVolumeError_INVALID_VOLUME_ID))
-					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorDescription()).To(Equal("Volume id is missing in request"))
+					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorCode()).To(Equal(Error_NodePublishVolumeError_INVALID_VOLUME_HANDLE))
+					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorDescription()).To(Equal("Volume handle is missing in request"))
 				})
 			})
 
-			Context("when the volume name is missing", func() {
+			Context("when the volume id is missing", func() {
 				BeforeEach(func() {
 					fakeOs.StatReturns(nil, os.ErrNotExist)
-					volID = &VolumeID{Values: map[string]string{}}
+					volHandle = &VolumeHandle{Id: ""}
 				})
 				AfterEach(func() {
 					fakeOs.StatReturns(nil, nil)
@@ -165,8 +165,8 @@ var _ = Describe("Node Client", func() {
 
 				It("returns an error", func() {
 					Expect(err).NotTo(HaveOccurred())
-					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorCode()).To(Equal(Error_NodePublishVolumeError_INVALID_VOLUME_ID))
-					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorDescription()).To(Equal("Volume name is missing in request"))
+					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorCode()).To(Equal(Error_NodePublishVolumeError_INVALID_VOLUME_HANDLE))
+					Expect(publishResp.GetError().GetNodePublishVolumeError().GetErrorDescription()).To(Equal("Volume ID is missing in request"))
 				})
 			})
 
@@ -184,7 +184,7 @@ var _ = Describe("Node Client", func() {
 
 			Context("When the volume capability is not mount capability", func() {
 				BeforeEach(func() {
-					vc = &VolumeCapability{Value: nil}
+					vc = &VolumeCapability{}
 				})
 
 				It("returns an error", func() {
@@ -205,9 +205,9 @@ var _ = Describe("Node Client", func() {
 			BeforeEach(func() {
 				request = &NodeUnpublishVolumeRequest{
 					&Version{Major: 0, Minor: 0, Patch: 1},
-					volID,
-					&VolumeMetadata{},
+					volHandle,
 					"unpublish-path",
+					nil,
 				}
 
 			})
@@ -225,13 +225,13 @@ var _ = Describe("Node Client", func() {
 			)
 
 			JustBeforeEach(func() {
-				publish_resp, publish_err := nodePublish(context, nc, volID, vc, mount_path)
+				publish_resp, publish_err := nodePublish(context, nc, volHandle, vc, mount_path)
 				Expect(publish_err).ToNot(HaveOccurred())
 				Expect(publish_resp).ToNot(BeNil())
 			})
 
 			It("Unmount the volume", func() {
-				unmountResponse, err := nodeUnpublish(context, nc, volID, mount_path)
+				unmountResponse, err := nodeUnpublish(context, nc, volHandle, mount_path)
 				Expect(err).To(BeNil())
 				Expect(unmountResponse.GetError()).To(BeNil())
 				Expect(unmountResponse.GetResult()).NotTo(BeNil())
@@ -249,7 +249,7 @@ var _ = Describe("Node Client", func() {
 					path := "/not-found"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
-						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						VolumeHandle:   &VolumeHandle{Id: "abcd"},
 						TargetPath: path,
 					})
 					Expect(err).ToNot(HaveOccurred())
@@ -267,7 +267,7 @@ var _ = Describe("Node Client", func() {
 					path := "/not-symbolic-link"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
-						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						VolumeHandle:   &VolumeHandle{Id: "abcd"},
 						TargetPath: path,
 					})
 
@@ -278,32 +278,32 @@ var _ = Describe("Node Client", func() {
 				})
 			})
 
+			Context("when the volume handle is missing", func() {
+				It("returns an error", func() {
+					var path string = "/test-path"
+					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
+						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
+						VolumeHandle:   nil,
+						TargetPath: path,
+					})
+					errorMsg := "Volume handle is missing in request"
+					Expect(err).NotTo(HaveOccurred())
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
+				})
+			})
+
 			Context("when the volume id is missing", func() {
 				It("returns an error", func() {
 					var path string = "/test-path"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
-						VolumeId:   nil,
+						VolumeHandle:   &VolumeHandle{},
 						TargetPath: path,
 					})
 					errorMsg := "Volume id is missing in request"
 					Expect(err).NotTo(HaveOccurred())
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
-				})
-			})
-
-			Context("when the volume name is missing", func() {
-				It("returns an error", func() {
-					var path string = "/test-path"
-					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
-						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
-						VolumeId:   &VolumeID{Values: map[string]string{}},
-						TargetPath: path,
-					})
-					errorMsg := "Volume name is missing in request"
-					Expect(err).NotTo(HaveOccurred())
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE))
 					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
 				})
 			})
@@ -312,11 +312,11 @@ var _ = Describe("Node Client", func() {
 				It("returns an error", func() {
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						Version:  &Version{Major: 0, Minor: 0, Patch: 1},
-						VolumeId: &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						VolumeHandle: &VolumeHandle{Id: "abcd"},
 					})
 					errorMsg := "Mount path is missing in the request"
 					Expect(err).NotTo(HaveOccurred())
-					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_ID))
+					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorCode()).To(Equal(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE))
 					Expect(resp.GetError().GetNodeUnpublishVolumeError().GetErrorDescription()).To(Equal(errorMsg))
 				})
 			})
@@ -331,7 +331,7 @@ var _ = Describe("Node Client", func() {
 					var path string = "/test-path"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						Version:    &Version{Major: 0, Minor: 0, Patch: 1},
-						VolumeId:   &VolumeID{Values: map[string]string{"volume_name": "abcd"}},
+						VolumeHandle:   &VolumeHandle{Id: "abcd"},
 						TargetPath: path,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -412,10 +412,10 @@ var _ = Describe("Node Client", func() {
 	})
 })
 
-func nodePublish(ctx context.Context, ns NodeServer, volID *VolumeID, volCapability *VolumeCapability, targetPath string) (*NodePublishVolumeResponse, error) {
+func nodePublish(ctx context.Context, ns NodeServer, volHandle *VolumeHandle, volCapability *VolumeCapability, targetPath string) (*NodePublishVolumeResponse, error) {
 	mountResponse, err := ns.NodePublishVolume(ctx, &NodePublishVolumeRequest{
 		Version:          &Version{Major: 0, Minor: 0, Patch: 1},
-		VolumeId:         volID,
+		VolumeHandle:         volHandle,
 		TargetPath:       targetPath,
 		VolumeCapability: volCapability,
 		Readonly:         false,
@@ -423,10 +423,10 @@ func nodePublish(ctx context.Context, ns NodeServer, volID *VolumeID, volCapabil
 	return mountResponse, err
 }
 
-func nodeUnpublish(ctx context.Context, ns NodeServer, volID *VolumeID, path string) (*NodeUnpublishVolumeResponse, error) {
+func nodeUnpublish(ctx context.Context, ns NodeServer, volHandle *VolumeHandle, path string) (*NodeUnpublishVolumeResponse, error) {
 	unmountResponse, err := ns.NodeUnpublishVolume(ctx, &NodeUnpublishVolumeRequest{
 		Version:    &Version{Major: 0, Minor: 0, Patch: 1},
-		VolumeId:   volID,
+		VolumeHandle:   volHandle,
 		TargetPath: path,
 	})
 	return unmountResponse, err
