@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 
-	cf_lager "code.cloudfoundry.org/cflager"
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
@@ -16,6 +15,7 @@ import (
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"
+	"code.cloudfoundry.org/lager/lagerflags"
 )
 
 var atAddress = flag.String(
@@ -64,6 +64,6 @@ func main() {
 }
 
 func parseCommandLine() {
-	cf_lager.AddFlags(flag.CommandLine)
+	lagerflags.AddFlags(flag.CommandLine)
 	flag.Parse()
 }
