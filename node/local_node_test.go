@@ -22,7 +22,7 @@ import (
 
 var _ = Describe("Node Client", func() {
 	var (
-		nc           *node.LocalNode
+		nc           NodeServer
 		testLogger   lager.Logger
 		context      context.Context
 		fakeOs       *os_fake.FakeOs
@@ -365,21 +365,21 @@ var _ = Describe("Node Client", func() {
 		})
 	})
 
-	Describe("ProbeNode", func() {
+	Describe("NodeProbe", func() {
 		var (
-			request          *ProbeNodeRequest
-			expectedResponse *ProbeNodeResponse
+			request          *NodeProbeRequest
+			expectedResponse *NodeProbeResponse
 		)
-		Context("when ProbeNode is called with a ProbeNodeRequest", func() {
+		Context("when NodeProbe is called with a NodeProbeRequest", func() {
 			BeforeEach(func() {
-				request = &ProbeNodeRequest{
+				request = &NodeProbeRequest{
 					&Version{Major: 0, Minor: 0, Patch: 1},
 				}
 			})
 			JustBeforeEach(func() {
-				expectedResponse, err = nc.ProbeNode(context, request)
+				expectedResponse, err = nc.NodeProbe(context, request)
 			})
-			It("should return a ProbeNodeResponse", func() {
+			It("should return a NodeProbeResponse", func() {
 				Expect(expectedResponse).NotTo(BeNil())
 				Expect(expectedResponse.GetResult()).NotTo(BeNil())
 				Expect(err).To(BeNil())

@@ -28,7 +28,7 @@ type LocalNode struct {
 	volumesRootDir string
 }
 
-func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) *LocalNode {
+func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) NodeServer {
 	return &LocalNode{
 		os:             os,
 		filepath:       filepath,
@@ -166,10 +166,10 @@ func (d *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNo
 			Result: &GetNodeIDResponse_Result{}}}, nil
 }
 
-func (d *LocalNode) ProbeNode(ctx context.Context, in *ProbeNodeRequest) (*ProbeNodeResponse, error) {
-	return &ProbeNodeResponse{
-		Reply: &ProbeNodeResponse_Result_{
-			Result: &ProbeNodeResponse_Result{}}}, nil
+func (d *LocalNode) NodeProbe(ctx context.Context, in *NodeProbeRequest) (*NodeProbeResponse, error) {
+	return &NodeProbeResponse{
+		Reply: &NodeProbeResponse_Result_{
+			Result: &NodeProbeResponse_Result{}}}, nil
 }
 
 func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
