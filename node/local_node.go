@@ -11,6 +11,8 @@ import (
 	"code.cloudfoundry.org/lager"
 	. "github.com/container-storage-interface/spec/lib/go/csi"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 const (
@@ -36,71 +38,29 @@ func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Log
 		volumesRootDir: volumeRootDir,
 	}
 }
-func createPublishVolumeErrorResponse(errorCode Error_NodePublishVolumeError_NodePublishVolumeErrorCode, errorDescription string) *NodePublishVolumeResponse {
-	return &NodePublishVolumeResponse{
-		Reply: &NodePublishVolumeResponse_Error{
-			Error: &Error{
-				Value: &Error_NodePublishVolumeError_{
-					NodePublishVolumeError: &Error_NodePublishVolumeError{
-						ErrorCode:        errorCode,
-						ErrorDescription: errorDescription,
-					}}}}}
-}
-
-func createPublishVolumeResultResponse() *NodePublishVolumeResponse {
-	return &NodePublishVolumeResponse{
-		Reply: &NodePublishVolumeResponse_Result_{
-			Result: &NodePublishVolumeResponse_Result{},
-		},
-	}
-}
-
-func createUnpublishVolumeErrorResponse(errorCode Error_NodeUnpublishVolumeError_NodeUnpublishVolumeErrorCode, errorDescription string) *NodeUnpublishVolumeResponse {
-	return &NodeUnpublishVolumeResponse{
-		Reply: &NodeUnpublishVolumeResponse_Error{
-			Error: &Error{
-				Value: &Error_NodeUnpublishVolumeError_{
-					NodeUnpublishVolumeError: &Error_NodeUnpublishVolumeError{
-						ErrorCode:        errorCode,
-						ErrorDescription: errorDescription,
-					}}}}}
-}
-
-func createUnpublishVolumeResultResponse() *NodeUnpublishVolumeResponse {
-	return &NodeUnpublishVolumeResponse{
-		Reply: &NodeUnpublishVolumeResponse_Result_{
-			Result: &NodeUnpublishVolumeResponse_Result{},
-		},
-	}
-}
 func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolumeRequest) (*NodePublishVolumeResponse, error) {
 	logger := ln.logger.Session("node-publish-volume")
 	logger.Info("start")
 	defer logger.Info("end")
 
-	volHandle := in.GetVolumeHandle()
-	if volHandle == nil {
-		errorDescription := "Volume handle is missing in request"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
-	}
-
-	var volId string = in.GetVolumeHandle().GetId()
+	var volId string = in.GetVolumeId()
 
 	if volId == "" {
 		errorDescription := "Volume ID is missing in request"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
+		return nil, grpc.Errorf(codes.InvalidArgument, errorDescription)
 	}
+
 	volumePath := ln.volumePath(ln.logger, volId)
 	logger.Info("volume-path", lager.Data{"value": volumePath})
 
 	vc := in.GetVolumeCapability()
 	if vc == nil {
 		errorDescription := "Volume capability is missing in request"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
+		return nil, grpc.Errorf(codes.InvalidArgument, errorDescription)
 	}
 	if vc.GetMount() == nil {
 		errorDescription := "Volume mount capability is not specified"
-		return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
+		return nil, grpc.Errorf(codes.InvalidArgument, errorDescription)
 	}
 
 	mountPath := in.GetTargetPath()
@@ -113,26 +73,21 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 		err := ln.mount(ln.logger, volumePath, mountPath)
 		if err != nil {
 			ln.logger.Error("mount-volume-failed", err)
-			errorDescription := fmt.Sprintf("Error mounting volume %s", err.Error())
-			return createPublishVolumeErrorResponse(Error_NodePublishVolumeError_MOUNT_ERROR, errorDescription), nil
+			errorDescription := "Error mounting volume"
+			return nil, grpc.Errorf(codes.Internal, errorDescription)
 		}
 		ln.logger.Info("volume-mounted", lager.Data{"volume id": volId, "volume path": volumePath, "mount path": mountPath})
 	}
 
-	return createPublishVolumeResultResponse(), nil
+	return &NodePublishVolumeResponse{}, nil
 }
 
 func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishVolumeRequest) (*NodeUnpublishVolumeResponse, error) {
-	volHandle := in.GetVolumeHandle()
-	if volHandle == nil {
-		errorDescription := "Volume handle is missing in request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
-	}
+	var volId string = in.GetVolumeId()
 
-	volId := in.GetVolumeHandle().GetId()
 	if volId == "" {
-		errorDescription := "Volume id is missing in request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
+		errorDescription := "Volume ID is missing in request"
+		return nil, grpc.Errorf(codes.InvalidArgument, errorDescription)
 	}
 
 	ln.logger.Info("unmount", lager.Data{"volume id": volId})
@@ -140,42 +95,36 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 	mountPath := in.GetTargetPath()
 	if mountPath == "" {
 		errorDescription := "Mount path is missing in the request"
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_INVALID_VOLUME_HANDLE, errorDescription), nil
+		return nil, grpc.Errorf(codes.InvalidArgument, errorDescription)
 	}
 
 	fi, err := ln.os.Lstat(mountPath)
 
 	if ln.os.IsNotExist(err) {
-		return createUnpublishVolumeResultResponse(), nil
+		return &NodeUnpublishVolumeResponse{}, nil
 	} else if fi.Mode()&os.ModeSymlink == 0 {
 		errorDescription := fmt.Sprintf("Mount point '%s' is not a symbolic link", mountPath)
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_VOLUME_DOES_NOT_EXIST, errorDescription), nil
+		return nil, grpc.Errorf(codes.InvalidArgument, errorDescription)
 	}
 
 	err = ln.unmount(ln.logger, mountPath)
 	if err != nil {
 		errorDescription := err.Error()
-		return createUnpublishVolumeErrorResponse(Error_NodeUnpublishVolumeError_UNMOUNT_ERROR, errorDescription), nil
+		return nil, grpc.Errorf(codes.Internal, errorDescription)
 	}
-	return createUnpublishVolumeResultResponse(), nil
+	return &NodeUnpublishVolumeResponse{}, nil
 }
 
 func (d *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNodeIDResponse, error) {
-	return &GetNodeIDResponse{
-		Reply: &GetNodeIDResponse_Result_{
-			Result: &GetNodeIDResponse_Result{}}}, nil
+	return &GetNodeIDResponse{}, nil
 }
 
 func (d *LocalNode) NodeProbe(ctx context.Context, in *NodeProbeRequest) (*NodeProbeResponse, error) {
-	return &NodeProbeResponse{
-		Reply: &NodeProbeResponse_Result_{
-			Result: &NodeProbeResponse_Result{}}}, nil
+	return &NodeProbeResponse{}, nil
 }
 
 func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
-	return &NodeGetCapabilitiesResponse{Reply: &NodeGetCapabilitiesResponse_Result_{
-		Result: &NodeGetCapabilitiesResponse_Result{
-			Capabilities: []*NodeServiceCapability{}}}}, nil
+	return &NodeGetCapabilitiesResponse{Capabilities: []*NodeServiceCapability{}}, nil
 }
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {
