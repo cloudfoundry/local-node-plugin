@@ -16,6 +16,7 @@ import (
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"
 	"code.cloudfoundry.org/lager/lagerflags"
+	"google.golang.org/grpc"
 )
 
 var atAddress = flag.String(
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger, *volumesRoot)
-	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterNodeServer)
+	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterServices)
 
 	monitor := ifrit.Invoke(sigmon.New(server))
 	logger.Info("started")
@@ -66,4 +67,9 @@ func main() {
 func parseCommandLine() {
 	lagerflags.AddFlags(flag.CommandLine)
 	flag.Parse()
+}
+
+func RegisterServices(s *grpc.Server, srv interface{}) {
+	RegisterNodeServer(s, srv.(NodeServer))
+	RegisterIdentityServer(s, srv.(IdentityServer))
 }
