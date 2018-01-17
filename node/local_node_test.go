@@ -26,7 +26,7 @@ var CSIVersion = &Version{Major: 0, Minor: 1, Patch: 0}
 
 var _ = Describe("Node Client", func() {
 	var (
-		nc           NodeServer
+		nc           *node.LocalNode
 		testLogger   lager.Logger
 		context      context.Context
 		fakeOs       *os_fake.FakeOs
@@ -388,6 +388,53 @@ var _ = Describe("Node Client", func() {
 				capabilities := expectedResponse.GetCapabilities()
 				Expect(capabilities).To(HaveLen(0))
 				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("GetSupportedVersions", func() {
+		var (
+			request *GetSupportedVersionsRequest
+			expectedResponse *GetSupportedVersionsResponse
+		)
+		Context("when provided with a GetSupportedVersionsRequest", func() {
+			BeforeEach(func() {
+				request = &GetSupportedVersionsRequest{}
+			})
+
+			JustBeforeEach(func() {
+				expectedResponse, err = nc.GetSupportedVersions(context, request)
+			})
+
+			It("returns a list of supported versions", func() {
+				Expect(expectedResponse).NotTo(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(expectedResponse.GetSupportedVersions()).NotTo(BeNil())
+				Expect(expectedResponse.GetSupportedVersions()).NotTo(BeEmpty())
+				Expect(expectedResponse.GetSupportedVersions()).To(ContainElement(&Version{Major: 0, Minor: 1, Patch: 0}))
+			})
+		})
+	})
+
+	Describe("GetPluginInfo", func() {
+		var (
+			request *GetPluginInfoRequest
+			expectedResponse *GetPluginInfoResponse
+		)
+		Context("when provided with a GetPluginInfoRequest", func() {
+			BeforeEach(func() {
+				request = &GetPluginInfoRequest{Version: CSIVersion}
+			})
+
+			JustBeforeEach(func() {
+				expectedResponse, err = nc.GetPluginInfo(context, request)
+			})
+
+			It("returns the plugin info", func() {
+				Expect(expectedResponse).NotTo(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+				Expect(expectedResponse.GetName()).To(Equal("com.github.jeffpak.local-controller-plugin"))
+				Expect(expectedResponse.GetVendorVersion()).To(Equal("0.1.0"))
 			})
 		})
 	})

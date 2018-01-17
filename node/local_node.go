@@ -30,7 +30,7 @@ type LocalNode struct {
 	volumesRootDir string
 }
 
-func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) NodeServer {
+func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) *LocalNode {
 	return &LocalNode{
 		os:             os,
 		filepath:       filepath,
@@ -115,16 +115,31 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 	return &NodeUnpublishVolumeResponse{}, nil
 }
 
-func (d *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNodeIDResponse, error) {
+func (ln *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNodeIDResponse, error) {
 	return &GetNodeIDResponse{}, nil
 }
 
-func (d *LocalNode) NodeProbe(ctx context.Context, in *NodeProbeRequest) (*NodeProbeResponse, error) {
+func (ln *LocalNode) NodeProbe(ctx context.Context, in *NodeProbeRequest) (*NodeProbeResponse, error) {
 	return &NodeProbeResponse{}, nil
 }
 
-func (d *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
+func (ln *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
 	return &NodeGetCapabilitiesResponse{Capabilities: []*NodeServiceCapability{}}, nil
+}
+
+func (ln *LocalNode) GetSupportedVersions(ctx context.Context, in *GetSupportedVersionsRequest) (*GetSupportedVersionsResponse, error) {
+	return &GetSupportedVersionsResponse{
+		SupportedVersions: []*Version{
+			{Major: 0, Minor: 1, Patch: 0},
+		},
+	}, nil
+}
+
+func (ln *LocalNode) GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest) (*GetPluginInfoResponse, error) {
+	return &GetPluginInfoResponse{
+		Name: "com.github.jeffpak.local-controller-plugin",
+		VendorVersion: "0.1.0",
+	}, nil
 }
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {
