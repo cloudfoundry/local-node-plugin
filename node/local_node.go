@@ -137,7 +137,7 @@ func (ln *LocalNode) GetSupportedVersions(ctx context.Context, in *GetSupportedV
 
 func (ln *LocalNode) GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest) (*GetPluginInfoResponse, error) {
 	return &GetPluginInfoResponse{
-		Name: "com.github.jeffpak.local-controller-plugin",
+		Name:          NODE_PLUGIN_ID,
 		VendorVersion: "0.1.0",
 	}, nil
 }

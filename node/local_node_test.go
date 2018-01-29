@@ -394,7 +394,7 @@ var _ = Describe("Node Client", func() {
 
 	Describe("GetSupportedVersions", func() {
 		var (
-			request *GetSupportedVersionsRequest
+			request          *GetSupportedVersionsRequest
 			expectedResponse *GetSupportedVersionsResponse
 		)
 		Context("when provided with a GetSupportedVersionsRequest", func() {
@@ -418,7 +418,7 @@ var _ = Describe("Node Client", func() {
 
 	Describe("GetPluginInfo", func() {
 		var (
-			request *GetPluginInfoRequest
+			request          *GetPluginInfoRequest
 			expectedResponse *GetPluginInfoResponse
 		)
 		Context("when provided with a GetPluginInfoRequest", func() {
@@ -433,7 +433,7 @@ var _ = Describe("Node Client", func() {
 			It("returns the plugin info", func() {
 				Expect(expectedResponse).NotTo(BeNil())
 				Expect(err).ToNot(HaveOccurred())
-				Expect(expectedResponse.GetName()).To(Equal("com.github.jeffpak.local-controller-plugin"))
+				Expect(expectedResponse.GetName()).To(Equal(node.NODE_PLUGIN_ID))
 				Expect(expectedResponse.GetVendorVersion()).To(Equal("0.1.0"))
 			})
 		})
