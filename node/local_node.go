@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
 	. "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/jeffpak/local-node-plugin/oshelper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,11 +23,16 @@ type LocalVolume struct {
 	VolumeInfo
 }
 
+type OsHelper interface {
+	Umask(mask int) (oldmask int)
+}
+
 type LocalNode struct {
 	filepath       filepathshim.Filepath
 	os             osshim.Os
 	logger         lager.Logger
 	volumesRootDir string
+	oshelper       OsHelper
 }
 
 func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) *LocalNode {
@@ -36,6 +41,7 @@ func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Log
 		filepath:       filepath,
 		logger:         logger,
 		volumesRootDir: volumeRootDir,
+		oshelper:       oshelper.NewOsHelper(),
 	}
 }
 func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolumeRequest) (*NodePublishVolumeResponse, error) {
@@ -144,8 +150,8 @@ func (ln *LocalNode) GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {
 	volumesPathRoot := filepath.Join(ns.volumesRootDir, volumeId)
-	orig := syscall.Umask(000)
-	defer syscall.Umask(orig)
+	orig := ns.oshelper.Umask(000)
+	defer ns.oshelper.Umask(orig)
 	err := ns.os.MkdirAll(volumesPathRoot, os.ModePerm)
 	if err != nil {
 		panic(err)
@@ -163,15 +169,15 @@ func (ns *LocalNode) mount(logger lager.Logger, volumePath, mountPath string) er
 	}
 
 	logger.Info("link", lager.Data{"src": volumePath, "tgt": mountPath})
-	orig := syscall.Umask(000)
-	defer syscall.Umask(orig)
+	orig := ns.oshelper.Umask(000)
+	defer ns.oshelper.Umask(orig)
 	return ns.os.Symlink(volumePath, mountPath)
 }
 
 func (ns *LocalNode) unmount(logger lager.Logger, mountPath string) error {
 	logger.Info("unlink", lager.Data{"tgt": mountPath})
-	orig := syscall.Umask(000)
-	defer syscall.Umask(orig)
+	orig := ns.oshelper.Umask(000)
+	defer ns.oshelper.Umask(orig)
 	return ns.os.Remove(mountPath)
 }
 
@@ -198,8 +204,10 @@ func createVolumesRootifNotExist(logger lager.Logger, mountPath string, osShim o
 	if err != nil {
 		if osShim.IsNotExist(err) {
 			// Create the directory if not exist
-			orig := syscall.Umask(000)
-			defer syscall.Umask(orig)
+			oshelper := oshelper.NewOsHelper()
+			orig := oshelper.Umask(000)
+			defer oshelper.Umask(orig)
+
 			err = osShim.MkdirAll(mountPath, os.ModePerm)
 			if err != nil {
 				logger.Error("mkdirall", err)
