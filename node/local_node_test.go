@@ -2,7 +2,6 @@ package node_test
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 
 	"code.cloudfoundry.org/goshims/filepathshim/filepath_fake"
@@ -90,7 +89,7 @@ var _ = Describe("Node Client", func() {
 
 					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
 					path, _ := fakeOs.MkdirAllArgsForCall(0)
-					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeId)))
+					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
 					Expect(from).To(Equal(volumesRoot + "/test-volume-id"))
@@ -112,7 +111,7 @@ var _ = Describe("Node Client", func() {
 
 					Expect(fakeOs.MkdirAllCallCount()).To(Equal(2))
 					path, _ := fakeOs.MkdirAllArgsForCall(0)
-					Expect(path).To(Equal(fmt.Sprintf("%s/%s", volumesRoot, volumeId)))
+					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
 
 					path, _ = fakeOs.MkdirAllArgsForCall(1)
 					Expect(path).To(Equal(mount_path_parent))
