@@ -92,7 +92,7 @@ var _ = Describe("Node Client", func() {
 					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
-					Expect(from).To(Equal(volumesRoot + "/test-volume-id"))
+					Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
 					Expect(to).To(Equal(mount_path))
 				})
 			})
@@ -114,11 +114,11 @@ var _ = Describe("Node Client", func() {
 					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
 
 					path, _ = fakeOs.MkdirAllArgsForCall(1)
-					Expect(path).To(Equal(mount_path_parent))
+					Expect(path).To(ContainSubstring(mount_path_parent))
 
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
-					Expect(from).To(Equal(volumesRoot + "/test-volume-id"))
+					Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
 					Expect(to).To(Equal(mount_path))
 				})
 			})
