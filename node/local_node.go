@@ -8,7 +8,7 @@ import (
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
-	. "github.com/container-storage-interface/spec/lib/go/csi"
+	. "github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"github.com/jeffpak/local-node-plugin/oshelper"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -20,7 +20,7 @@ const (
 )
 
 type LocalVolume struct {
-	VolumeInfo
+	Volume
 }
 
 type OsHelper interface {
@@ -121,24 +121,28 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 	return &NodeUnpublishVolumeResponse{}, nil
 }
 
-func (ln *LocalNode) GetNodeID(ctx context.Context, in *GetNodeIDRequest) (*GetNodeIDResponse, error) {
-	return &GetNodeIDResponse{}, nil
+func (ln *LocalNode) NodeGetId(ctx context.Context, in *NodeGetIdRequest) (*NodeGetIdResponse, error) {
+	return &NodeGetIdResponse{}, nil
 }
 
-func (ln *LocalNode) NodeProbe(ctx context.Context, in *NodeProbeRequest) (*NodeProbeResponse, error) {
-	return &NodeProbeResponse{}, nil
+func (ln *LocalNode) Probe(ctx context.Context, in *ProbeRequest) (*ProbeResponse, error) {
+	return &ProbeResponse{}, nil
+}
+
+func (ln *LocalNode) NodeStageVolume(ctx context.Context, in *NodeStageVolumeRequest) (*NodeStageVolumeResponse, error) {
+	return &NodeStageVolumeResponse{}, nil
+}
+
+func (ln *LocalNode) NodeUnstageVolume(ctx context.Context, in *NodeUnstageVolumeRequest) (*NodeUnstageVolumeResponse, error) {
+	return &NodeUnstageVolumeResponse{}, nil
 }
 
 func (ln *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
 	return &NodeGetCapabilitiesResponse{Capabilities: []*NodeServiceCapability{}}, nil
 }
 
-func (ln *LocalNode) GetSupportedVersions(ctx context.Context, in *GetSupportedVersionsRequest) (*GetSupportedVersionsResponse, error) {
-	return &GetSupportedVersionsResponse{
-		SupportedVersions: []*Version{
-			{Major: 0, Minor: 1, Patch: 0},
-		},
-	}, nil
+func (ln *LocalNode) GetPluginCapabilities(ctx context.Context, in *GetPluginCapabilitiesRequest) (*GetPluginCapabilitiesResponse, error) {
+	return &GetPluginCapabilitiesResponse{Capabilities: []*PluginCapability{}}, nil
 }
 
 func (ln *LocalNode) GetPluginInfo(ctx context.Context, in *GetPluginInfoRequest) (*GetPluginInfoResponse, error) {

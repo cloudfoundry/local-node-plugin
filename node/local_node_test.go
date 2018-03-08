@@ -15,13 +15,11 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
-	. "github.com/container-storage-interface/spec/lib/go/csi"
+	. "github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"github.com/jeffpak/local-node-plugin/node"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-var CSIVersion = &Version{Major: 0, Minor: 1, Patch: 0}
 
 var _ = Describe("Node Client", func() {
 	var (
@@ -191,10 +189,8 @@ var _ = Describe("Node Client", func() {
 		Context("when NodeUnpublishVolume is called with a NodeUnpublishVolume", func() {
 			BeforeEach(func() {
 				request = &NodeUnpublishVolumeRequest{
-					CSIVersion,
 					volumeId,
 					"unpublish-path",
-					nil,
 				}
 
 			})
@@ -234,7 +230,6 @@ var _ = Describe("Node Client", func() {
 					fakeOs.IsNotExistReturns(true)
 					path := "/not-found"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
-						Version:    CSIVersion,
 						VolumeId:   "abcd",
 						TargetPath: path,
 					})
@@ -252,7 +247,6 @@ var _ = Describe("Node Client", func() {
 
 					path := "/not-symbolic-link"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
-						Version:    CSIVersion,
 						VolumeId:   "abcd",
 						TargetPath: path,
 					})
@@ -271,7 +265,6 @@ var _ = Describe("Node Client", func() {
 				It("returns an error", func() {
 					var path string = "/test-path"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
-						Version:    CSIVersion,
 						TargetPath: path,
 					})
 					errorMsg := "Volume ID is missing in request"
@@ -287,7 +280,6 @@ var _ = Describe("Node Client", func() {
 			Context("when the mount path is missing", func() {
 				It("returns an error", func() {
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
-						Version:  CSIVersion,
 						VolumeId: "abcd",
 					})
 					errorMsg := "Mount path is missing in the request"
@@ -309,7 +301,6 @@ var _ = Describe("Node Client", func() {
 				It("returns an error", func() {
 					var path string = "/test-path"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
-						Version:    CSIVersion,
 						VolumeId:   "abcd",
 						TargetPath: path,
 					})
@@ -326,17 +317,15 @@ var _ = Describe("Node Client", func() {
 
 	Describe("GetNodeID", func() {
 		var (
-			request          *GetNodeIDRequest
-			expectedResponse *GetNodeIDResponse
+			request          *NodeGetIdRequest
+			expectedResponse *NodeGetIdResponse
 		)
 		Context("when GetNodeID is called with a GetNodeIDRequest", func() {
 			BeforeEach(func() {
-				request = &GetNodeIDRequest{
-					CSIVersion,
-				}
+				request = &NodeGetIdRequest{}
 			})
 			JustBeforeEach(func() {
-				expectedResponse, err = nc.GetNodeID(context, request)
+				expectedResponse, err = nc.NodeGetId(context, request)
 			})
 			It("should return a GetNodeIDResponse that has a result with no node ID", func() {
 				Expect(expectedResponse).NotTo(BeNil())
@@ -348,17 +337,15 @@ var _ = Describe("Node Client", func() {
 
 	Describe("NodeProbe", func() {
 		var (
-			request          *NodeProbeRequest
-			expectedResponse *NodeProbeResponse
+			request          *ProbeRequest
+			expectedResponse *ProbeResponse
 		)
 		Context("when NodeProbe is called with a NodeProbeRequest", func() {
 			BeforeEach(func() {
-				request = &NodeProbeRequest{
-					CSIVersion,
-				}
+				request = &ProbeRequest{}
 			})
 			JustBeforeEach(func() {
-				expectedResponse, err = nc.NodeProbe(context, request)
+				expectedResponse, err = nc.Probe(context, request)
 			})
 			It("should return a NodeProbeResponse", func() {
 				Expect(expectedResponse).NotTo(BeNil())
@@ -374,9 +361,7 @@ var _ = Describe("Node Client", func() {
 		)
 		Context("when NodeGetCapabilities is called with a NodeGetCapabilitiesRequest", func() {
 			BeforeEach(func() {
-				request = &NodeGetCapabilitiesRequest{
-					CSIVersion,
-				}
+				request = &NodeGetCapabilitiesRequest{}
 			})
 			JustBeforeEach(func() {
 				expectedResponse, err = nc.NodeGetCapabilities(context, request)
@@ -391,30 +376,6 @@ var _ = Describe("Node Client", func() {
 		})
 	})
 
-	Describe("GetSupportedVersions", func() {
-		var (
-			request          *GetSupportedVersionsRequest
-			expectedResponse *GetSupportedVersionsResponse
-		)
-		Context("when provided with a GetSupportedVersionsRequest", func() {
-			BeforeEach(func() {
-				request = &GetSupportedVersionsRequest{}
-			})
-
-			JustBeforeEach(func() {
-				expectedResponse, err = nc.GetSupportedVersions(context, request)
-			})
-
-			It("returns a list of supported versions", func() {
-				Expect(expectedResponse).NotTo(BeNil())
-				Expect(err).ToNot(HaveOccurred())
-				Expect(expectedResponse.GetSupportedVersions()).NotTo(BeNil())
-				Expect(expectedResponse.GetSupportedVersions()).NotTo(BeEmpty())
-				Expect(expectedResponse.GetSupportedVersions()).To(ContainElement(&Version{Major: 0, Minor: 1, Patch: 0}))
-			})
-		})
-	})
-
 	Describe("GetPluginInfo", func() {
 		var (
 			request          *GetPluginInfoRequest
@@ -422,7 +383,7 @@ var _ = Describe("Node Client", func() {
 		)
 		Context("when provided with a GetPluginInfoRequest", func() {
 			BeforeEach(func() {
-				request = &GetPluginInfoRequest{Version: CSIVersion}
+				request = &GetPluginInfoRequest{}
 			})
 
 			JustBeforeEach(func() {
@@ -441,7 +402,6 @@ var _ = Describe("Node Client", func() {
 
 func nodePublish(ctx context.Context, ns NodeServer, volumeId string, volCapability *VolumeCapability, targetPath string) (*NodePublishVolumeResponse, error) {
 	mountResponse, err := ns.NodePublishVolume(ctx, &NodePublishVolumeRequest{
-		Version:          CSIVersion,
 		VolumeId:         volumeId,
 		TargetPath:       targetPath,
 		VolumeCapability: volCapability,
@@ -452,7 +412,6 @@ func nodePublish(ctx context.Context, ns NodeServer, volumeId string, volCapabil
 
 func nodeUnpublish(ctx context.Context, ns NodeServer, volumeId string, path string) (*NodeUnpublishVolumeResponse, error) {
 	unmountResponse, err := ns.NodeUnpublishVolume(ctx, &NodeUnpublishVolumeRequest{
-		Version:    CSIVersion,
 		VolumeId:   volumeId,
 		TargetPath: path,
 	})
