@@ -70,7 +70,6 @@ var _ = Describe("Node Client", func() {
 			})
 
 			Context("when the volume exists", func() {
-
 				AfterEach(func() {
 					fileInfo := newFakeFileInfo()
 					fakeOs.LstatReturns(fileInfo, nil)
@@ -80,18 +79,55 @@ var _ = Describe("Node Client", func() {
 					Expect(unmountResponse).NotTo(BeNil())
 				})
 
-				It("should mount the volume on the local filesystem", func() {
-					// Expect(fakeFilepath.AbsCallCount()).To(Equal(1))
-					Expect(err).To(BeNil())
-					Expect(publishResp).NotTo(BeNil())
+				Context("when volume is a symlink", func() {
+					BeforeEach(func() {
+						fileInfo := newFakeFileInfo()
+						fakeOs.LstatReturns(fileInfo, nil)
+						fileInfo.StubMode(os.ModeSymlink)
+					})
 
-					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
-					path, _ := fakeOs.MkdirAllArgsForCall(0)
-					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
-					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
-					from, to := fakeOs.SymlinkArgsForCall(0)
-					Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
-					Expect(to).To(Equal(mount_path))
+					It("should mount the volume on the local filesystem", func() {
+						// Expect(fakeFilepath.AbsCallCount()).To(Equal(1))
+						Expect(err).To(BeNil())
+						Expect(publishResp).NotTo(BeNil())
+
+						Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
+						path, _ := fakeOs.MkdirAllArgsForCall(0)
+						Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+						Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+						from, to := fakeOs.SymlinkArgsForCall(0)
+						Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
+						Expect(to).To(Equal(mount_path))
+					})
+				})
+
+				Context("when volume path is a directory", func() {
+					BeforeEach(func() {
+						fileInfo := newFakeFileInfo()
+						fakeOs.LstatReturns(fileInfo, nil)
+						fileInfo.StubMode(os.ModeDir)
+					})
+
+					It("deletes a destination directory, creates volumesRoot directory and Send publish request to CSI node server", func() {
+						Expect(err).To(BeNil())
+						Expect(publishResp).NotTo(BeNil())
+
+						Expect(fakeOs.RemoveCallCount()).To(Equal(1))
+						path := fakeOs.RemoveArgsForCall(0)
+						Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+
+						Expect(fakeOs.MkdirAllCallCount()).To(Equal(2))
+						path, _ := fakeOs.MkdirAllArgsForCall(0)
+						Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+
+						path, _ = fakeOs.MkdirAllArgsForCall(1)
+						Expect(path).To(ContainSubstring(mount_path_parent))
+
+						Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+						from, to := fakeOs.SymlinkArgsForCall(0)
+						Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
+						Expect(to).To(Equal(mount_path))
+					})
 				})
 			})
 
@@ -126,6 +162,7 @@ var _ = Describe("Node Client", func() {
 					fakeOs.StatReturns(nil, nil)
 					publishResp, err = nodePublish(context, nc, volumeId, vc, mount_path)
 				})
+
 				It("should succeed", func() {
 					Expect(err).To(BeNil())
 					Expect(publishResp).NotTo(BeNil())

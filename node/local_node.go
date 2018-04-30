@@ -83,6 +83,8 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 			return nil, grpc.Errorf(codes.Internal, errorDescription)
 		}
 		ln.logger.Info("volume-mounted", lager.Data{"volume id": volId, "volume path": volumePath, "mount path": mountPath})
+	} else {
+
 	}
 
 	return &NodePublishVolumeResponse{}, nil
