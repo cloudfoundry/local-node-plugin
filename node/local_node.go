@@ -84,19 +84,12 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 			return nil, grpc.Errorf(codes.Internal, errorDescription)
 		}
 
-		if fi.Mode()&os.ModeSymlink != 0 {
-			ln.logger.Info("symlink-exist", lager.Data{"mountPath": mountPath, "modeSymlink": os.ModeSymlink})
-			return &NodePublishVolumeResponse{}, nil
-		}
-
-		if fi.IsDir() {
-			ln.logger.Info("remove-mount-path", lager.Data{"mountPath": mountPath})
-			err = ln.os.Remove(mountPath)
-			if err != nil {
-				ln.logger.Error("delete-volume-path-failed", err)
-				errorDescription := "Error deleting volume path"
-				return nil, grpc.Errorf(codes.Internal, errorDescription)
-			}
+		ln.logger.Info("remove-mount-path", lager.Data{"mountPath": mountPath})
+		err = ln.os.Remove(mountPath)
+		if err != nil {
+			ln.logger.Error("delete-volume-path-failed", err)
+			errorDescription := "Error deleting volume path"
+			return nil, grpc.Errorf(codes.Internal, errorDescription)
 		}
 	}
 

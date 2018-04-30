@@ -95,9 +95,6 @@ var _ = Describe("Node Client", func() {
 				})
 			})
 
-			//TODO
-			Context("when the mount path is a symbolic link", func() {
-			})
 		})
 	})
 
@@ -182,7 +179,8 @@ var _ = Describe("Node Client", func() {
 				It("should succeed", func() {
 					Expect(err).To(BeNil())
 					Expect(publishResp).NotTo(BeNil())
-					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+					Expect(fakeOs.RemoveCallCount()).To(Equal(1))
+					Expect(fakeOs.SymlinkCallCount()).To(Equal(2))
 				})
 			})
 		})
@@ -349,11 +347,10 @@ var _ = Describe("Node Client", func() {
 
 			Context("when the removal fails while unmounting", func() {
 				var errorMsg string
-				BeforeEach(func() {
+
+				It("returns an error", func() {
 					errorMsg = "Error ummounting volume abcd"
 					fakeOs.RemoveReturns(errors.New(errorMsg))
-				})
-				It("returns an error", func() {
 					var path string = "/test-path"
 					resp, err := nc.NodeUnpublishVolume(context, &NodeUnpublishVolumeRequest{
 						VolumeId:   "abcd",
