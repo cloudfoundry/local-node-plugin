@@ -58,8 +58,7 @@ var _ = Describe("Node Client", func() {
 
 		Context("when mount path exist", func() {
 			var (
-				mount_path        = "/path/to/mount/_mounts/test-volume-id"
-				mount_path_parent = filepath.Dir(mount_path)
+				mount_path = "/path/to/mount/_mounts/test-volume-id"
 			)
 
 			BeforeEach(func() {
@@ -77,20 +76,17 @@ var _ = Describe("Node Client", func() {
 					fileInfo.StubMode(os.ModeDir)
 				})
 
-				FIt("deletes a destination directory, creates volumesRoot directory and Send publish request to CSI node server", func() {
+				It("deletes a destination directory, creates volumesRoot directory and Send publish request to CSI node server", func() {
 					Expect(err).To(BeNil())
 					Expect(publishResp).NotTo(BeNil())
 
 					Expect(fakeOs.RemoveCallCount()).To(Equal(1))
 					path := fakeOs.RemoveArgsForCall(0)
-					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+					Expect(path).To(Equal(mount_path))
 
-					Expect(fakeOs.MkdirAllCallCount()).To(Equal(2))
-					path, _ := fakeOs.MkdirAllArgsForCall(0)
+					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
+					path, _ = fakeOs.MkdirAllArgsForCall(0)
 					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
-
-					path, _ = fakeOs.MkdirAllArgsForCall(1)
-					Expect(path).To(ContainSubstring(mount_path_parent))
 
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 					from, to := fakeOs.SymlinkArgsForCall(0)
@@ -189,51 +185,53 @@ var _ = Describe("Node Client", func() {
 					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
 				})
 			})
+		})
 
-			Context("when the volume id is missing", func() {
-				BeforeEach(func() {
-					fakeOs.StatReturns(nil, os.ErrNotExist)
-					volumeId = ""
-				})
-				AfterEach(func() {
-					fakeOs.StatReturns(nil, nil)
-				})
-
-				It("returns an error", func() {
-					Expect(err).To(HaveOccurred())
-					grpcStatus, _ := status.FromError(err)
-					Expect(grpcStatus).NotTo(BeNil())
-					Expect(grpcStatus.Code()).To(Equal(codes.InvalidArgument))
-					Expect(grpcStatus.Message()).To(Equal("Volume ID is missing in request"))
-				})
+		Context("when the volume id is missing", func() {
+			BeforeEach(func() {
+				fakeOs.StatReturns(nil, os.ErrNotExist)
+				fakeOs.LstatReturns(fileInfo, nil)
+				fileInfo.StubMode(os.ModeDir)
+				volumeId = ""
+			})
+			AfterEach(func() {
+				fakeOs.StatReturns(nil, nil)
 			})
 
-			Context("when the volume capability is missing", func() {
-				BeforeEach(func() {
-					vc = nil
-				})
+			It("returns an error", func() {
+				Expect(err).To(HaveOccurred())
+				grpcStatus, _ := status.FromError(err)
+				Expect(grpcStatus).NotTo(BeNil())
+				Expect(grpcStatus.Code()).To(Equal(codes.InvalidArgument))
+				Expect(grpcStatus.Message()).To(Equal("Volume ID is missing in request"))
+			})
+		})
 
-				It("returns an error", func() {
-					Expect(err).To(HaveOccurred())
-					grpcStatus, _ := status.FromError(err)
-					Expect(grpcStatus).NotTo(BeNil())
-					Expect(grpcStatus.Code()).To(Equal(codes.InvalidArgument))
-					Expect(grpcStatus.Message()).To(Equal("Volume capability is missing in request"))
-				})
+		Context("when the volume capability is missing", func() {
+			BeforeEach(func() {
+				vc = nil
 			})
 
-			Context("When the volume capability is not mount capability", func() {
-				BeforeEach(func() {
-					vc = &VolumeCapability{}
-				})
+			It("returns an error", func() {
+				Expect(err).To(HaveOccurred())
+				grpcStatus, _ := status.FromError(err)
+				Expect(grpcStatus).NotTo(BeNil())
+				Expect(grpcStatus.Code()).To(Equal(codes.InvalidArgument))
+				Expect(grpcStatus.Message()).To(Equal("Volume capability is missing in request"))
+			})
+		})
 
-				It("returns an error", func() {
-					Expect(err).To(HaveOccurred())
-					grpcStatus, _ := status.FromError(err)
-					Expect(grpcStatus).NotTo(BeNil())
-					Expect(grpcStatus.Code()).To(Equal(codes.InvalidArgument))
-					Expect(grpcStatus.Message()).To(Equal("Volume mount capability is not specified"))
-				})
+		Context("When the volume capability is not mount capability", func() {
+			BeforeEach(func() {
+				vc = &VolumeCapability{}
+			})
+
+			It("returns an error", func() {
+				Expect(err).To(HaveOccurred())
+				grpcStatus, _ := status.FromError(err)
+				Expect(grpcStatus).NotTo(BeNil())
+				Expect(grpcStatus.Code()).To(Equal(codes.InvalidArgument))
+				Expect(grpcStatus.Message()).To(Equal("Volume mount capability is not specified"))
 			})
 		})
 	})
@@ -494,7 +492,7 @@ func (FakeFileInfo) Size() int64                 { return 0 }
 func (fs *FakeFileInfo) Mode() os.FileMode       { return fs.FileMode }
 func (fs *FakeFileInfo) StubMode(fm os.FileMode) { fs.FileMode = fm }
 func (FakeFileInfo) ModTime() time.Time          { return time.Time{} }
-func (FakeFileInfo) IsDir() bool                 { return false }
+func (fs *FakeFileInfo) IsDir() bool             { return fs.FileMode == os.ModeDir }
 func (FakeFileInfo) Sys() interface{}            { return nil }
 
 func newFakeFileInfo() *FakeFileInfo {
