@@ -75,15 +75,38 @@ func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolum
 	exists, _ := ln.exists(mountPath)
 	ln.logger.Info("volume-exists", lager.Data{"value": exists})
 
-	if !exists {
-		err := ln.mount(ln.logger, volumePath, mountPath)
+	if exists {
+		fi, err := ln.os.Lstat(mountPath)
+		ln.logger.Info("mount-path-lstat", lager.Data{"filemode": fi, "error": err})
 		if err != nil {
-			ln.logger.Error("mount-volume-failed", err)
-			errorDescription := "Error mounting volume"
+			ln.logger.Error("getting-volume-stat-failed", err)
+			errorDescription := "Error getting volume stat"
 			return nil, grpc.Errorf(codes.Internal, errorDescription)
 		}
-		ln.logger.Info("volume-mounted", lager.Data{"volume id": volId, "volume path": volumePath, "mount path": mountPath})
+
+		if fi.Mode()&os.ModeSymlink != 0 {
+			ln.logger.Info("symlink-exist", lager.Data{"mountPath": mountPath, "modeSymlink": os.ModeSymlink})
+			return &NodePublishVolumeResponse{}, nil
+		}
+
+		if fi.IsDir() {
+			ln.logger.Info("remove-mount-path", lager.Data{"mountPath": mountPath})
+			err = ln.os.Remove(mountPath)
+			if err != nil {
+				ln.logger.Error("delete-volume-path-failed", err)
+				errorDescription := "Error deleting volume path"
+				return nil, grpc.Errorf(codes.Internal, errorDescription)
+			}
+		}
 	}
+
+	err := ln.mount(ln.logger, volumePath, mountPath)
+	if err != nil {
+		ln.logger.Error("mount-volume-failed", err)
+		errorDescription := "Error mounting volume"
+		return nil, grpc.Errorf(codes.Internal, errorDescription)
+	}
+	ln.logger.Info("volume-mounted", lager.Data{"volume id": volId, "volume path": volumePath, "mount path": mountPath})
 
 	return &NodePublishVolumeResponse{}, nil
 }
