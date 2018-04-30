@@ -55,79 +55,99 @@ var _ = Describe("Node Client", func() {
 	})
 
 	Describe("NodePublishVolume", func() {
-		Context("when the volume has been created", func() {
+
+		Context("when mount path exist", func() {
 			var (
 				mount_path        = "/path/to/mount/_mounts/test-volume-id"
 				mount_path_parent = filepath.Dir(mount_path)
 			)
 
 			BeforeEach(func() {
-				fakeOs.StatReturns(nil, os.ErrNotExist)
+				fakeOs.StatReturns(nil, nil)
 			})
 
 			JustBeforeEach(func() {
 				publishResp, err = nodePublish(context, nc, volumeId, vc, mount_path)
 			})
 
-			Context("when the volume exists", func() {
-				AfterEach(func() {
+			Context("when the mount path is a directory", func() {
+				BeforeEach(func() {
+					fileInfo := newFakeFileInfo()
+					fakeOs.LstatReturns(fileInfo, nil)
+					fileInfo.StubMode(os.ModeDir)
+				})
+
+				FIt("deletes a destination directory, creates volumesRoot directory and Send publish request to CSI node server", func() {
+					Expect(err).To(BeNil())
+					Expect(publishResp).NotTo(BeNil())
+
+					Expect(fakeOs.RemoveCallCount()).To(Equal(1))
+					path := fakeOs.RemoveArgsForCall(0)
+					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+
+					Expect(fakeOs.MkdirAllCallCount()).To(Equal(2))
+					path, _ := fakeOs.MkdirAllArgsForCall(0)
+					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+
+					path, _ = fakeOs.MkdirAllArgsForCall(1)
+					Expect(path).To(ContainSubstring(mount_path_parent))
+
+					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+					from, to := fakeOs.SymlinkArgsForCall(0)
+					Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
+					Expect(to).To(Equal(mount_path))
+				})
+			})
+
+			//TODO
+			Context("when the mount path is a symbolic link", func() {
+			})
+		})
+	})
+
+	Context("when the volume has been created", func() {
+		var (
+			mount_path        = "/path/to/mount/_mounts/test-volume-id"
+			mount_path_parent = filepath.Dir(mount_path)
+		)
+
+		BeforeEach(func() {
+			fakeOs.StatReturns(nil, os.ErrNotExist)
+		})
+
+		JustBeforeEach(func() {
+			publishResp, err = nodePublish(context, nc, volumeId, vc, mount_path)
+		})
+
+		Context("when the volume exists", func() {
+			AfterEach(func() {
+				fileInfo := newFakeFileInfo()
+				fakeOs.LstatReturns(fileInfo, nil)
+				fileInfo.StubMode(os.ModeSymlink)
+				unmountResponse, err := nodeUnpublish(context, nc, volumeId, mount_path)
+				Expect(err).To(BeNil())
+				Expect(unmountResponse).NotTo(BeNil())
+			})
+
+			Context("when volume is a symlink", func() {
+				BeforeEach(func() {
 					fileInfo := newFakeFileInfo()
 					fakeOs.LstatReturns(fileInfo, nil)
 					fileInfo.StubMode(os.ModeSymlink)
-					unmountResponse, err := nodeUnpublish(context, nc, volumeId, mount_path)
+				})
+
+				It("should mount the volume on the local filesystem", func() {
+					// Expect(fakeFilepath.AbsCallCount()).To(Equal(1))
 					Expect(err).To(BeNil())
-					Expect(unmountResponse).NotTo(BeNil())
-				})
+					Expect(publishResp).NotTo(BeNil())
 
-				Context("when volume is a symlink", func() {
-					BeforeEach(func() {
-						fileInfo := newFakeFileInfo()
-						fakeOs.LstatReturns(fileInfo, nil)
-						fileInfo.StubMode(os.ModeSymlink)
-					})
-
-					It("should mount the volume on the local filesystem", func() {
-						// Expect(fakeFilepath.AbsCallCount()).To(Equal(1))
-						Expect(err).To(BeNil())
-						Expect(publishResp).NotTo(BeNil())
-
-						Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
-						path, _ := fakeOs.MkdirAllArgsForCall(0)
-						Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
-						Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
-						from, to := fakeOs.SymlinkArgsForCall(0)
-						Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
-						Expect(to).To(Equal(mount_path))
-					})
-				})
-
-				Context("when volume path is a directory", func() {
-					BeforeEach(func() {
-						fileInfo := newFakeFileInfo()
-						fakeOs.LstatReturns(fileInfo, nil)
-						fileInfo.StubMode(os.ModeDir)
-					})
-
-					It("deletes a destination directory, creates volumesRoot directory and Send publish request to CSI node server", func() {
-						Expect(err).To(BeNil())
-						Expect(publishResp).NotTo(BeNil())
-
-						Expect(fakeOs.RemoveCallCount()).To(Equal(1))
-						path := fakeOs.RemoveArgsForCall(0)
-						Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
-
-						Expect(fakeOs.MkdirAllCallCount()).To(Equal(2))
-						path, _ := fakeOs.MkdirAllArgsForCall(0)
-						Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
-
-						path, _ = fakeOs.MkdirAllArgsForCall(1)
-						Expect(path).To(ContainSubstring(mount_path_parent))
-
-						Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
-						from, to := fakeOs.SymlinkArgsForCall(0)
-						Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
-						Expect(to).To(Equal(mount_path))
-					})
+					Expect(fakeOs.MkdirAllCallCount()).To(Equal(1))
+					path, _ := fakeOs.MkdirAllArgsForCall(0)
+					Expect(path).To(Equal(filepath.Join(volumesRoot, volumeId)))
+					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+					from, to := fakeOs.SymlinkArgsForCall(0)
+					Expect(from).To(Equal(filepath.Join(volumesRoot, "test-volume-id")))
+					Expect(to).To(Equal(mount_path))
 				})
 			})
 
