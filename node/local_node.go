@@ -138,7 +138,13 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 }
 
 func (ln *LocalNode) NodeGetId(ctx context.Context, in *NodeGetIdRequest) (*NodeGetIdResponse, error) {
-	return &NodeGetIdResponse{}, nil
+	return &NodeGetIdResponse{
+	// NodeId is intentionally not specified
+	//
+	// According to the CSI spec NodeId is used by the controller plug-in when publishing volumes to a specific node.
+	// This behavior is more specific to block storage and has no utility when mounting other types of storage like shared
+	// volumes
+	}, nil
 }
 
 func (ln *LocalNode) Probe(ctx context.Context, in *ProbeRequest) (*ProbeResponse, error) {
@@ -155,6 +161,16 @@ func (ln *LocalNode) NodeUnstageVolume(ctx context.Context, in *NodeUnstageVolum
 
 func (ln *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabilitiesRequest) (*NodeGetCapabilitiesResponse, error) {
 	return &NodeGetCapabilitiesResponse{Capabilities: []*NodeServiceCapability{}}, nil
+}
+
+func (ln *LocalNode) NodeGetInfo(ctx context.Context, in *NodeGetInfoRequest) (*NodeGetInfoResponse, error) {
+	return &NodeGetInfoResponse{
+	// NodeId is intentionally not specified
+	//
+	// According to the CSI spec NodeId is used by the controller plug-in when publishing volumes to a specific node.
+	// This behavior is more specific to block storage and has no utility when mounting other types of storage like shared
+	// volumes
+	}, nil
 }
 
 func (ln *LocalNode) GetPluginCapabilities(ctx context.Context, in *GetPluginCapabilitiesRequest) (*GetPluginCapabilitiesResponse, error) {

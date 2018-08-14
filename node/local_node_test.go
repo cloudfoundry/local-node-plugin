@@ -242,8 +242,8 @@ var _ = Describe("Node Client", func() {
 		Context("when NodeUnpublishVolume is called with a NodeUnpublishVolume", func() {
 			BeforeEach(func() {
 				request = &NodeUnpublishVolumeRequest{
-					volumeId,
-					"unpublish-path",
+					VolumeId:   volumeId,
+					TargetPath: "unpublish-path",
 				}
 
 			})
@@ -424,6 +424,27 @@ var _ = Describe("Node Client", func() {
 				capabilities := expectedResponse.GetCapabilities()
 				Expect(capabilities).To(HaveLen(0))
 				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("NodeGetInfo", func() {
+		var (
+			request          *NodeGetInfoRequest
+			expectedResponse *NodeGetInfoResponse
+		)
+		Context("when NodeGetinfo is called with a NodeGetInfoRequest", func() {
+			BeforeEach(func() {
+				request = &NodeGetInfoRequest{}
+			})
+			JustBeforeEach(func() {
+				expectedResponse, err = nc.NodeGetInfo(context, request)
+			})
+
+			It("should return an empty NodeGetCapabilitiesResponse", func() {
+				Expect(err).ToNot(HaveOccurred())
+				Expect(expectedResponse).NotTo(BeNil())
+				Expect(*expectedResponse).To(Equal(NodeGetInfoResponse{}))
 			})
 		})
 	})
