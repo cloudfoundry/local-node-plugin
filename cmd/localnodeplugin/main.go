@@ -37,6 +37,12 @@ var volumesRoot = flag.String(
 	"Path to directory where plugin mount point start with",
 )
 
+var nodeId = flag.String(
+	"nodeId",
+	"",
+	"ID of the current node",
+)
+
 func main() {
 	parseCommandLine()
 
@@ -51,7 +57,7 @@ func main() {
 		logger.Fatal("exited-with-failure:", err)
 	}
 
-	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger, *volumesRoot)
+	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger, *volumesRoot, *nodeId)
 	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterServices)
 
 	monitor := ifrit.Invoke(sigmon.New(server))

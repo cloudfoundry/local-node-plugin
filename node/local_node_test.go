@@ -45,7 +45,7 @@ var _ = Describe("Node Client", func() {
 		fakeFilepath = &filepath_fake.FakeFilepath{}
 		fakeFilepath.AbsReturns("/path/to/mount", nil)
 
-		nc = node.NewLocalNode(fakeOs, fakeFilepath, testLogger, volumesRoot)
+		nc = node.NewLocalNode(fakeOs, fakeFilepath, testLogger, volumesRoot, "some-node-id")
 		volumeId = "test-volume-id"
 		vc = &VolumeCapability{AccessType: &VolumeCapability_Mount{Mount: &VolumeCapability_MountVolume{}}, AccessMode: &VolumeCapability_AccessMode{}}
 
@@ -379,9 +379,9 @@ var _ = Describe("Node Client", func() {
 			JustBeforeEach(func() {
 				expectedResponse, err = nc.NodeGetId(context, request)
 			})
-			It("should return a GetNodeIDResponse that has a result with no node ID", func() {
+			It("should return a GetNodeIDResponse that has a result with a node ID", func() {
 				Expect(expectedResponse).NotTo(BeNil())
-				Expect(expectedResponse.GetNodeId()).To(BeEmpty())
+				Expect(expectedResponse.GetNodeId()).To(Equal("some-node-id"))
 				Expect(err).To(BeNil())
 			})
 		})
@@ -444,7 +444,7 @@ var _ = Describe("Node Client", func() {
 			It("should return an empty NodeGetCapabilitiesResponse", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(expectedResponse).NotTo(BeNil())
-				Expect(*expectedResponse).To(Equal(NodeGetInfoResponse{}))
+				Expect(*expectedResponse).To(Equal(NodeGetInfoResponse{NodeId: "some-node-id"}))
 			})
 		})
 	})

@@ -33,15 +33,17 @@ type LocalNode struct {
 	logger         lager.Logger
 	volumesRootDir string
 	oshelper       OsHelper
+	nodeId         string
 }
 
-func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string) *LocalNode {
+func NewLocalNode(os osshim.Os, filepath filepathshim.Filepath, logger lager.Logger, volumeRootDir string, nodeId string) *LocalNode {
 	return &LocalNode{
 		os:             os,
 		filepath:       filepath,
 		logger:         logger,
 		volumesRootDir: volumeRootDir,
 		oshelper:       oshelper.NewOsHelper(),
+		nodeId:         nodeId,
 	}
 }
 func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *NodePublishVolumeRequest) (*NodePublishVolumeResponse, error) {
@@ -139,11 +141,7 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *NodeUnpublishV
 
 func (ln *LocalNode) NodeGetId(ctx context.Context, in *NodeGetIdRequest) (*NodeGetIdResponse, error) {
 	return &NodeGetIdResponse{
-	// NodeId is intentionally not specified
-	//
-	// According to the CSI spec NodeId is used by the controller plug-in when publishing volumes to a specific node.
-	// This behavior is more specific to block storage and has no utility when mounting other types of storage like shared
-	// volumes
+		NodeId: ln.nodeId,
 	}, nil
 }
 
@@ -165,11 +163,7 @@ func (ln *LocalNode) NodeGetCapabilities(ctx context.Context, in *NodeGetCapabil
 
 func (ln *LocalNode) NodeGetInfo(ctx context.Context, in *NodeGetInfoRequest) (*NodeGetInfoResponse, error) {
 	return &NodeGetInfoResponse{
-	// NodeId is intentionally not specified
-	//
-	// According to the CSI spec NodeId is used by the controller plug-in when publishing volumes to a specific node.
-	// This behavior is more specific to block storage and has no utility when mounting other types of storage like shared
-	// volumes
+		NodeId: ln.nodeId,
 	}, nil
 }
 
