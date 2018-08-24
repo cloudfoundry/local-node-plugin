@@ -13,6 +13,7 @@ import (
 	"code.cloudfoundry.org/lager/lagerflags"
 	. "github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"github.com/jeffpak/local-node-plugin/node"
+	"github.com/jeffpak/local-node-plugin/oshelper"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"
@@ -57,7 +58,8 @@ func main() {
 		logger.Fatal("exited-with-failure:", err)
 	}
 
-	node := node.NewLocalNode(&osshim.OsShim{}, &filepathshim.FilepathShim{}, logger, *volumesRoot, *nodeId)
+	os := &osshim.OsShim{}
+	node := node.NewLocalNode(os, oshelper.NewOsHelper(os), &filepathshim.FilepathShim{}, logger, *volumesRoot, *nodeId)
 	server := grpc_server.NewGRPCServer(listenAddress, nil, node, RegisterServices)
 
 	monitor := ifrit.Invoke(sigmon.New(server))
