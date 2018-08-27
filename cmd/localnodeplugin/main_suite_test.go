@@ -17,7 +17,7 @@ var driverPath string
 
 var _ = BeforeSuite(func() {
 	var err error
-	driverPath, err = Build("github.com/jeffpak/local-node-plugin/cmd/localnodeplugin")
+	driverPath, err = Build("code.cloudfoundry.org/local-node-plugin/cmd/localnodeplugin")
 	Expect(err).ToNot(HaveOccurred())
 })
 

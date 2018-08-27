@@ -15,9 +15,9 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
+	"code.cloudfoundry.org/local-node-plugin/node"
+	"code.cloudfoundry.org/local-node-plugin/node/nodefakes"
 	"github.com/container-storage-interface/spec/lib/go/csi/v0"
-	"github.com/jeffpak/local-node-plugin/node"
-	"github.com/jeffpak/local-node-plugin/node/nodefakes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

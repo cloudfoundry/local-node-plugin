@@ -4,7 +4,7 @@ package nodefakes
 import (
 	"sync"
 
-	"github.com/jeffpak/local-node-plugin/node"
+	"code.cloudfoundry.org/local-node-plugin/node"
 )
 
 type FakeOsHelper struct {

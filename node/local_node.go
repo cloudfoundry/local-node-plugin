@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	NODE_PLUGIN_ID = "com.github.jeffpak.local-node-plugin"
+	NODE_PLUGIN_ID = "org.cloudfoundry.code.local-node-plugin"
 )
 
 type LocalVolume struct {

@@ -11,9 +11,9 @@ import (
 
 	"code.cloudfoundry.org/csiplugin"
 	"code.cloudfoundry.org/lager/lagerflags"
+	"code.cloudfoundry.org/local-node-plugin/node"
+	"code.cloudfoundry.org/local-node-plugin/oshelper"
 	. "github.com/container-storage-interface/spec/lib/go/csi/v0"
-	"github.com/jeffpak/local-node-plugin/node"
-	"github.com/jeffpak/local-node-plugin/oshelper"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grpc_server"
 	"github.com/tedsuo/ifrit/sigmon"

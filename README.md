@@ -20,7 +20,7 @@ THIS REPOSITORY IS A WORK IN PROGRESS.
 
 1. Install [go](https://golang.org/doc/install).
 1. ```export PATH=$GOPATH/bin:$PATH```
-1. ```go get github.com/jeffpak/local-node-plugin >/dev/null 2>&1 || true```
-1. ```pushd $GOPATH/github.com/jeffpak/local-node-plugin```
+1. ```go get code.cloudfoundry.org/local-node-plugin >/dev/null 2>&1 || true```
+1. ```pushd $GOPATH/code.cloudfoundry.org/local-node-plugin```
 1. ```scripts/go_get_all_dep.sh```
 1. ```ginkgo -r```
