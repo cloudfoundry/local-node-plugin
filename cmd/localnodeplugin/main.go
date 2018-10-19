@@ -1,15 +1,11 @@
 package main
 
 import (
-	"os"
-
-	"code.cloudfoundry.org/goshims/filepathshim"
-	"code.cloudfoundry.org/goshims/osshim"
-	"code.cloudfoundry.org/lager"
-
 	"flag"
 
 	"code.cloudfoundry.org/csiplugin"
+	"code.cloudfoundry.org/goshims/filepathshim"
+	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager/lagerflags"
 	"code.cloudfoundry.org/local-node-plugin/node"
 	"code.cloudfoundry.org/local-node-plugin/oshelper"
@@ -47,9 +43,7 @@ var nodeId = flag.String(
 func main() {
 	parseCommandLine()
 
-	logger := lager.NewLogger("local-node-plugin")
-	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.DEBUG)
-	logger.RegisterSink(sink)
+	logger := lagerflags.NewFromConfig("local-node-plugin", lagerflags.ConfigFromFlags())
 
 	listenAddress := *atAddress
 
