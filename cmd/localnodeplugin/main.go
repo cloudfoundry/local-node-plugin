@@ -43,7 +43,9 @@ var nodeId = flag.String(
 func main() {
 	parseCommandLine()
 
-	logger := lagerflags.NewFromConfig("local-node-plugin", lagerflags.ConfigFromFlags())
+	logger, _ := lagerflags.NewFromConfig("local-node-plugin", lagerflags.ConfigFromFlags())
+	logger.Info("starting")
+	defer logger.Info("end")
 
 	listenAddress := *atAddress
 
