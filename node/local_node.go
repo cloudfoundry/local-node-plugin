@@ -7,7 +7,7 @@ import (
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -54,6 +54,14 @@ func NewLocalNode(
 		osHelper:       osHelper,
 		nodeId:         nodeId,
 	}
+}
+
+func (ln *LocalNode) NodeStageVolume(ctx context.Context, in *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	return &csi.NodeStageVolumeResponse{}, nil
+}
+
+func (ln *LocalNode) NodeUnstageVolume(ctx context.Context, in *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func (ln *LocalNode) NodePublishVolume(ctx context.Context, in *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -159,22 +167,8 @@ func (ln *LocalNode) NodeUnpublishVolume(ctx context.Context, in *csi.NodeUnpubl
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (ln *LocalNode) NodeGetId(ctx context.Context, in *csi.NodeGetIdRequest) (*csi.NodeGetIdResponse, error) {
-	return &csi.NodeGetIdResponse{
-		NodeId: ln.nodeId,
-	}, nil
-}
-
-func (ln *LocalNode) Probe(ctx context.Context, in *csi.ProbeRequest) (*csi.ProbeResponse, error) {
-	return &csi.ProbeResponse{}, nil
-}
-
-func (ln *LocalNode) NodeStageVolume(ctx context.Context, in *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return &csi.NodeStageVolumeResponse{}, nil
-}
-
-func (ln *LocalNode) NodeUnstageVolume(ctx context.Context, in *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return &csi.NodeUnstageVolumeResponse{}, nil
+func (ln *LocalNode) NodeGetVolumeStats(ctx context.Context, in *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	return &csi.NodeGetVolumeStatsResponse{}, nil
 }
 
 func (ln *LocalNode) NodeGetCapabilities(ctx context.Context, in *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
@@ -187,6 +181,8 @@ func (ln *LocalNode) NodeGetInfo(ctx context.Context, in *csi.NodeGetInfoRequest
 	}, nil
 }
 
+// Identity
+//
 func (ln *LocalNode) GetPluginCapabilities(ctx context.Context, in *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	return &csi.GetPluginCapabilitiesResponse{Capabilities: []*csi.PluginCapability{}}, nil
 }
@@ -196,6 +192,10 @@ func (ln *LocalNode) GetPluginInfo(ctx context.Context, in *csi.GetPluginInfoReq
 		Name:          NODE_PLUGIN_ID,
 		VendorVersion: "0.1.0",
 	}, nil
+}
+
+func (ln *LocalNode) Probe(ctx context.Context, in *csi.ProbeRequest) (*csi.ProbeResponse, error) {
+	return &csi.ProbeResponse{}, nil
 }
 
 func (ns *LocalNode) volumePath(logger lager.Logger, volumeId string) string {

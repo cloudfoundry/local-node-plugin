@@ -17,7 +17,7 @@ import (
 	"code.cloudfoundry.org/lager/lagertest"
 	"code.cloudfoundry.org/local-node-plugin/node"
 	"code.cloudfoundry.org/local-node-plugin/node/nodefakes"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -385,13 +385,12 @@ var _ = Describe("Node Client", func() {
 		})
 	})
 
-	Describe("GetNodeID", func() {
-		Context("when GetNodeID is called with a GetNodeIDRequest", func() {
-			It("should return a GetNodeIDResponse that has a result with a node ID", func() {
-				expectedResponse, err := localNode.NodeGetId(context, &csi.NodeGetIdRequest{})
+	Describe("GetNodeVolumeStats", func() {
+		Context("when GetNodeVolumeStats is called with a GetNodeVolumeStatsRequest", func() {
+			It("should return a GetNodeVolumeStatsResponse", func() {
+				expectedResponse, err := localNode.NodeGetVolumeStats(context, &csi.NodeGetVolumeStatsRequest{VolumeId: volumeId, VolumePath: mountPath})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(expectedResponse).NotTo(BeNil())
-				Expect(expectedResponse.GetNodeId()).To(Equal("some-node-id"))
 			})
 		})
 	})
